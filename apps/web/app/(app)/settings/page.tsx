@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useLogout } from "@/hooks/use-session";
-import { Button, Card, Input, SectionTitle } from "@/components/ui";
+import { Button, Card, ErrorBanner, Field, Input, SectionTitle } from "@/components/ui";
+import { PageHeader } from "@/components/page";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -30,8 +31,9 @@ export default function SettingsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <Card>
+    <div className="mx-auto max-w-xl p-6">
+      <PageHeader title="Settings" subtitle="Your account and workstation credentials." />
+      <Card className="mt-6">
         <SectionTitle>Account</SectionTitle>
         {me.data && (
           <div className="text-sm text-slate-300">
@@ -44,35 +46,39 @@ export default function SettingsPage() {
         )}
       </Card>
 
-      <Card>
+      <Card className="mt-4">
         <SectionTitle>Change password</SectionTitle>
         <form
-          className="space-y-3"
+          className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
             change.mutate();
           }}
         >
-          <Input
-            type="password"
-            required
-            placeholder="Current password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-            autoComplete="current-password"
-          />
-          <Input
-            type="password"
-            required
-            minLength={12}
-            placeholder="New password (12+ chars)"
-            value={next}
-            onChange={(e) => setNext(e.target.value)}
-            autoComplete="new-password"
-          />
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          {done && <p className="text-xs text-emerald-400">Password changed — please sign in again.</p>}
-          <Button type="submit" disabled={change.isPending}>
+          <Field label="Current password">
+            <Input
+              type="password"
+              required
+              placeholder="Current password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              autoComplete="current-password"
+            />
+          </Field>
+          <Field label="New password" hint="12+ characters, mixed case and digits.">
+            <Input
+              type="password"
+              required
+              minLength={12}
+              placeholder="New password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              autoComplete="new-password"
+            />
+          </Field>
+          {error ? <ErrorBanner message={error} /> : null}
+          {done && <p className="text-xs text-[var(--status-ok)]">Password changed — please sign in again.</p>}
+          <Button type="submit" disabled={change.isPending} className="self-start">
             {change.isPending ? "Saving…" : "Change password"}
           </Button>
         </form>

@@ -4,8 +4,40 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  CheckCircle2,
+  Clock,
+  Cog,
+  FileText,
+  Send,
+  ShieldCheck,
+  TriangleAlert,
+} from "lucide-react";
 import { ApiError, api } from "@/lib/api";
-import { Badge, Button, Card, Empty, Input, SectionTitle, Spinner, Textarea } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  Empty,
+  ErrorBanner,
+  Input,
+  Spinner,
+  Textarea,
+  TimeAgo,
+} from "@/components/ui";
+import { PageHeader, SectionHeader } from "@/components/page";
+import { DisclosureStatusBadge } from "@/components/badges";
+import { disclosureStatusLabel, formatDateTime } from "@/lib/format";
+
+const FLOW = [
+  { key: "DRAFT", hint: "Edit the draft freely." },
+  { key: "PENDING_APPROVAL", hint: "Awaiting your review." },
+  { key: "APPROVED", hint: "Approved — ready to send." },
+  { key: "SENT", hint: "Handed to SMTP." },
+  { key: "DELIVERED", hint: "Accepted by the recipient server." },
+];
 
 export default function DisclosureDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,16 +58,15 @@ export default function DisclosureDetailPage() {
     qc.invalidateQueries({ queryKey: ["disclosure", id] });
     qc.invalidateQueries({ queryKey: ["disclosures"] });
   };
-  const wrap = (fn: () => Promise<unknown>) =>
+  const wrap = (fn: () => Promise<unknown>, ok?: string) =>
     fn()
       .then(() => {
         setError(null);
+        if (ok) setInfo(ok);
         invalidate();
       })
       .catch((e: unknown) =>
-        setError(
-          e instanceof ApiError ? e.message : "Request failed.",
-        ),
+        setError(e instanceof ApiError ? e.message : "Request failed."),
       );
 
   const edit = useMutation({
@@ -48,87 +79,178 @@ export default function DisclosureDetailPage() {
       setError(null);
       setSubject(null);
       setBody(null);
+      setInfo("Draft saved.");
       invalidate();
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : "Edit failed."),
   });
 
-  if (q.isLoading) return <Spinner />;
-  if (q.isError || !q.data) return <Empty>Disclosure not found (or not yours).</Empty>;
+  if (q.isLoading) {
+    return (
+      <div className="p-6">
+        <Spinner label="Loading disclosure…" />
+      </div>
+    );
+  }
+  if (q.isError || !q.data) {
+    return (
+      <div className="max-w-2xl p-6">
+        <Empty icon={<FileText className="h-8 w-8" aria-hidden />}>
+          Disclosure not found (or not yours).{" "}
+          <Link href="/disclosures" className="text-blue-400 hover:underline">
+            Back to disclosures
+          </Link>
+        </Empty>
+      </div>
+    );
+  }
   const d = q.data;
   const editable = d.status === "DRAFT";
   const effSubject = subject ?? d.subject;
   const effBody = body ?? d.body;
+  const cancelled = d.status === "CANCELLED";
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <Badge color={d.status === "DELIVERED" ? "green" : "neutral"}>
-                {d.status}
-              </Badge>
-              {d.delivery_status && (
-                <span className="text-xs text-slate-500">
-                  delivery: {d.delivery_status}
-                </span>
-              )}
-            </div>
-            <h1 className="text-lg font-semibold text-white">{d.subject}</h1>
-            <p className="text-xs text-slate-500">
-              {d.asset_name} → {d.recipient_email} (source:{" "}
-              {d.recipient_source ?? "unknown"})
-            </p>
-            {d.error && <p className="mt-1 text-xs text-red-400">{d.error}</p>}
-            {info && <p className="mt-1 text-xs text-emerald-400">{info}</p>}
-          </div>
+    <div className="mx-auto max-w-[1100px] p-6">
+      <Link
+        href="/disclosures"
+        className="inline-flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
+      >
+        <ArrowLeft className="h-3 w-3" aria-hidden /> Back to disclosures
+      </Link>
 
-          <div className="flex flex-wrap gap-2">
-            {editable && (
+      <header className="mt-3 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <DisclosureStatusBadge status={d.status} />
+            {d.delivery_status ? <Badge color="info">delivery: {d.delivery_status}</Badge> : null}
+          </div>
+          <h1 className="mt-1.5 text-xl font-semibold tracking-[-0.01em] text-slate-100">
+            {d.subject}
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">
+            <Link href={`/assets/${d.asset_id}`} className="hover:text-slate-200">
+              {d.asset_name}
+            </Link>
+            {" → "}
+            <span className="font-mono text-xs">{d.recipient_email}</span>
+            {d.recipient_source ? (
+              <span className="text-slate-600">
+                {" "}· source: {d.recipient_source.replace("_", " ").toLowerCase()}
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {editable ? (
+            <>
+              <Button variant="secondary" onClick={() => wrap(() => api.testEmail(d.id), "Test email sent to your own account address.")}>
+                <Send className="h-4 w-4" aria-hidden /> Send test email
+              </Button>
               <Button variant="secondary" onClick={() => wrap(() => api.markPending(d.id))}>
-                Mark pending
+                <Clock className="h-4 w-4" aria-hidden /> Mark pending
               </Button>
-            )}
-            {editable && (
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  wrap(() => api.testEmail(d.id)).then(() =>
-                    setInfo("Test email sent to your own account address."),
-                  )
-                }
-              >
-                Send test email
-              </Button>
-            )}
-            {(d.status === "DRAFT" || d.status === "PENDING_APPROVAL") && (
               <Button onClick={() => wrap(() => api.approve(d.id))}>
-                Approve &amp; send
+                <BadgeCheck className="h-4 w-4" aria-hidden /> Approve &amp; send
               </Button>
-            )}
-            {["APPROVED", "SENT", "DELIVERED"].includes(d.status) && (
-              <Button variant="secondary" onClick={() => wrap(() => api.sendNow(d.id))}>
-                Send again
-              </Button>
-            )}
-            {!["SENT", "DELIVERED"].includes(d.status) && (
               <Button variant="danger" onClick={() => wrap(() => api.cancelDisclosure(d.id))}>
                 Cancel
               </Button>
-            )}
-          </div>
+            </>
+          ) : d.status === "PENDING_APPROVAL" ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => wrap(() => api.markPending(d.id))}
+                disabled
+              >
+                <Clock className="h-4 w-4" aria-hidden /> Pending approval
+              </Button>
+              <Button onClick={() => wrap(() => api.approve(d.id))}>
+                <BadgeCheck className="h-4 w-4" aria-hidden /> Approve &amp; send
+              </Button>
+              <Button variant="danger" onClick={() => wrap(() => api.cancelDisclosure(d.id))}>
+                Cancel
+              </Button>
+            </>
+          ) : ["APPROVED", "SENT", "DELIVERED"].includes(d.status) ? (
+            <>
+              <Button variant="secondary" onClick={() => wrap(() => api.sendNow(d.id))}>
+                <Send className="h-4 w-4" aria-hidden /> Send again
+              </Button>
+              {d.status !== "DELIVERED" ? (
+                <Button variant="danger" onClick={() => wrap(() => api.cancelDisclosure(d.id))}>
+                  Cancel
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <Badge color="neutral">No further actions — {disclosureStatusLabel[d.status] ?? d.status}</Badge>
+          )}
         </div>
-        {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      </header>
+
+      {cancelled || d.error || d.delivery_status === "FAILED" ? (
+        <div className="mt-4">
+          <ErrorBanner
+            message={
+              cancelled
+                ? "This disclosure was cancelled and cannot be sent again. Draft a new one from the finding."
+                : (d.error ? `Delivery error: ${d.error}` : "Delivery failed — see API logs for the SMTP trace.")
+            }
+          />
+        </div>
+      ) : info ? (
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-[rgba(52,211,153,0.3)] bg-[var(--status-ok-dim)] px-3 py-2 text-sm text-[var(--status-ok)]">
+          <CheckCircle2 className="h-4 w-4" aria-hidden /> {info}
+        </div>
+      ) : null}
+
+      {/* Status flow rail */}
+      <Card className="mt-6">
+        <SectionHeader title="Workflow" />
+        <ol className="flex flex-wrap gap-x-2 gap-y-3">
+          {FLOW.map((s, i) => {
+            const idx = FLOW.findIndex((x) => x.key === d.status);
+            const done = idx >= i && idx !== -1;
+            const active = idx === i;
+            return (
+              <li key={s.key} className="flex min-w-[130px] flex-1 items-center gap-2">
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold ${
+                    done
+                      ? "border-[rgba(52,211,153,0.4)] bg-[var(--status-ok-dim)] text-[var(--status-ok)]"
+                      : active
+                        ? "border-blue-500/50 bg-blue-500/10 text-blue-300"
+                        : "border-[rgba(255,255,255,0.1)] text-slate-600"
+                  }`}
+                >
+                  {done ? <CheckCircle2 className="h-3 w-3" aria-hidden /> : i + 1}
+                </span>
+                <span className="min-w-0">
+                  <span className={`block text-xs font-medium ${done || active ? "text-slate-200" : "text-slate-600"}`}>
+                    {disclosureStatusLabel[s.key]}
+                  </span>
+                  <span className="block truncate text-[10px] text-slate-600">{s.hint}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
       </Card>
 
-      {editable && (
-        <Card>
-          <SectionTitle>Edit draft</SectionTitle>
-          <div className="space-y-3">
-            <Input value={effSubject} onChange={(e) => setSubject(e.target.value)} />
-            <Textarea rows={14} value={effBody} onChange={(e) => setBody(e.target.value)} />
-            <div className="flex items-center gap-2">
+      {/* Editor */}
+      {editable ? (
+        <Card className="mt-6">
+          <SectionHeader title="Edit draft" />
+          <div className="flex flex-col gap-3">
+            <Input
+              aria-label="Email subject"
+              value={effSubject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+            <Textarea rows={14} aria-label="Email body" value={effBody} onChange={(e) => setBody(e.target.value)} />
+            <div className="flex items-center gap-3">
               <Button
                 onClick={() => edit.mutate()}
                 disabled={edit.isPending || (!subject && !body)}
@@ -136,27 +258,56 @@ export default function DisclosureDetailPage() {
                 {edit.isPending ? "Saving…" : "Save changes"}
               </Button>
               <span className="text-[11px] text-slate-600">
-                Protected words (non-invasive statement) stay enforced by the API.
+                <Cog className="mr-1 inline h-3 w-3" aria-hidden />
+                Protected words (the non-invasive statement) stay enforced by the
+                API — edits removing them are rejected.
               </span>
             </div>
           </div>
         </Card>
-      )}
+      ) : null}
 
-      <Card>
-        <SectionTitle>
-          {editable ? "Current draft" : "Sent content"}
-        </SectionTitle>
-        <pre className="whitespace-pre-wrap rounded-lg border border-[#1f2a3d] bg-[#0a0f1a] p-4 text-xs text-slate-300">
-          {d.body}
-        </pre>
+      {/* Static preview for the email */}
+      <Card className="mt-6">
+        <SectionHeader title={editable ? "Effective content" : "Sent content"} />
+        <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[var(--bg-page)] p-4">
+          <div className="mb-3 border-b border-[rgba(255,255,255,0.07)] pb-2 text-xs">
+            <span className="text-slate-600">Subject:</span>{" "}
+            <span className="font-medium text-slate-200">{d.subject}</span>
+          </div>
+          <pre className="whitespace-pre-wrap font-sans text-xs leading-5 text-slate-300">
+            {d.body}
+          </pre>
+        </div>
       </Card>
 
-      <p className="text-center text-xs text-slate-600">
-        <Link href="/disclosures" className="hover:text-slate-400">
-          ← Back to disclosures
-        </Link>
-      </p>
+      {/* Meta timeline */}
+      <Card className="mt-6 p-4">
+        <div className="flex flex-wrap gap-x-8 gap-y-2 text-[11px]">
+          <span className="text-slate-600">
+            Created <TimeAgo date={d.created_at} className="text-slate-400" /> ({formatDateTime(d.created_at)})
+          </span>
+          {d.approved_at ? (
+            <span className="text-slate-600">
+              Approved <TimeAgo date={d.approved_at} className="text-slate-400" />
+            </span>
+          ) : null}
+          {d.last_sent_at ? (
+            <span className="text-slate-600">
+              Last sent <TimeAgo date={d.last_sent_at} className="text-slate-400" />
+            </span>
+          ) : null}
+          <span className="flex items-center gap-1.5 text-slate-600">
+            <ShieldCheck className="h-3 w-3" aria-hidden /> Token-gated delivery · auto-cancel after 72h · no exploit claims
+          </span>
+          {!editable && !d.error ? (
+            <span className="flex items-center gap-1.5 text-slate-600">
+              <TriangleAlert className="h-3 w-3" aria-hidden />
+              Duplicate sends are blocked by the backend with 409 DUPLICATE_DISCLOSURE
+            </span>
+          ) : null}
+        </div>
+      </Card>
     </div>
   );
 }

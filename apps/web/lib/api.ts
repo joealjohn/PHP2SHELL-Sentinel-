@@ -71,6 +71,9 @@ async function request<T>(
 }
 
 export const api = {
+  /* health (public, no auth) */
+  requestPublic: <T,>(method: "GET", path: string) => request<T>(method, path),
+
   /* auth */
   register: (email: string, password: string) =>
     request<User>("POST", "/api/auth/register", { email, password }),
@@ -131,9 +134,12 @@ export const api = {
     ),
 
   /* scans */
-  scans: (assetId?: string) => {
-    const q = assetId ? `?asset_id=${encodeURIComponent(assetId)}` : "";
-    return request<{ scans: Scan[] }>("GET", `/api/scans${q}`);
+  scans: (assetId?: string, limit?: number) => {
+    const q = new URLSearchParams();
+    if (assetId) q.set("asset_id", assetId);
+    if (limit) q.set("limit", String(limit));
+    const s = q.toString();
+    return request<{ scans: Scan[] }>("GET", `/api/scans${s ? `?${s}` : ""}`);
   },
   scan: (id: string) => request<Scan>("GET", `/api/scans/${id}`),
   cancelScan: (id: string) =>
@@ -142,10 +148,19 @@ export const api = {
     request<{ findings: Finding[] }>("GET", `/api/scan/${id}/findings`),
 
   /* findings */
-  findings: (params: { severity?: string; asset_id?: string } = {}) => {
+  findings: (params: {
+    severity?: string;
+    asset_id?: string;
+    status?: string;
+    vuln?: string;
+    limit?: number;
+  } = {}) => {
     const q = new URLSearchParams();
     if (params.severity) q.set("severity", params.severity);
     if (params.asset_id) q.set("asset_id", params.asset_id);
+    if (params.status) q.set("status", params.status);
+    if (params.vuln) q.set("vuln", params.vuln);
+    if (params.limit) q.set("limit", String(params.limit));
     const s = q.toString();
     return request<{ findings: Finding[] }>(
       "GET",

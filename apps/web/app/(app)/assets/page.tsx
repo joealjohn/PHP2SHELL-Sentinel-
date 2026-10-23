@@ -2,47 +2,40 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Globe, Plus, ShieldCheck, TriangleAlert } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
 import type { Asset } from "@/lib/types";
-import { Badge, Button, Card, Empty, Input, Spinner } from "@/components/ui";
+import { Badge, Button, Card, Empty, ErrorBanner, NowStamp, Skeleton, Spinner, TimeAgo } from "@/components/ui";
+import { PageHeader, SectionHeader } from "@/components/page";
+import { ScanStatusBadge } from "@/components/badges";
 
 export default function AssetsPage() {
   const router = useRouter();
   const qc = useQueryClient();
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
-  const [desc, setDesc] = useState("");
-  const [authConfirmed, setAuthConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["assets"],
     queryFn: () => api.assets(),
     refetchInterval: 30_000,
   });
 
-  const create = useMutation({
-    mutationFn: () =>
-      api.createAsset({
-        name,
-        url,
-        description: desc || undefined,
-        monitoring_enabled: true,
-        authorization_confirmed: authConfirmed,
-      }),
-    onSuccess: () => {
-      setName("");
-      setUrl("");
-      setDesc("");
-      setAuthConfirmed(false);
-      setError(null);
-      qc.invalidateQueries({ queryKey: ["assets"] });
-    },
-    onError: (e) =>
-      setError(e instanceof ApiError ? e.message : "Failed to create asset."),
+  /* Backend exposes last_scan_status but it is currently always null
+   * (known serializer gap); derive it honestly from the scans list. */
+  const scansQ = useQuery({
+    queryKey: ["scans", "asset-badges"],
+    queryFn: () => api.scans(undefined, 200),
+    refetchInterval: 30_000,
   });
+  const latestStatus = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of scansQ.data?.scans ?? []) {
+      if (!m.has(s.asset_id)) m.set(s.asset_id, s.status);
+    }
+    return m;
+  }, [scansQ.data]);
 
   const scan = useMutation({
     mutationFn: (asset: Asset) => api.queueScan(asset.id),
@@ -53,90 +46,150 @@ export default function AssetsPage() {
 
   const del = useMutation({
     mutationFn: (asset: Asset) => api.deleteAsset(asset.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["assets"] }),
+    onSuccess: () => {
+      setError(null);
+      refetch();
+    },
+    onError: (e) =>
+      setError(e instanceof ApiError ? e.message : "Failed to delete asset."),
   });
 
+  const assets = data?.assets ?? [];
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <h1 className="mb-3 text-lg font-semibold text-white">Add asset</h1>
-        <form
-          className="grid gap-3 md:grid-cols-[1fr_2fr_auto]"
-          onSubmit={(e) => {
-            e.preventDefault();
-            create.mutate();
-          }}
-        >
-          <Input required placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input required placeholder="https://example.com" value={url} onChange={(e) => setUrl(e.target.value)} />
-          <Button type="submit" disabled={create.isPending || !authConfirmed}>
-            {create.isPending ? "Adding…" : "Add asset"}
-          </Button>
-          <Input className="md:col-span-3" placeholder="Description (optional)" value={desc} onChange={(e) => setDesc(e.target.value)} />
-          <label className="md:col-span-3 flex items-start gap-2 text-xs text-slate-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={authConfirmed}
-              onChange={(e) => setAuthConfirmed(e.target.checked)}
-              className="mt-0.5 size-4 shrink-0 rounded border-[#253a5a] bg-[#0f1f3a] text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            />
-            <span>
-              I confirm I own this host or have written authorization to
-              security-test it. Required before scans can run.
-            </span>
-          </label>
-        </form>
-        {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-        <p className="mt-2 text-[11px] text-slate-600">
-          Only add hosts you own or have written authorization to test. SSRF
-          guards block private, loopback, and metadata targets unless
+    <div className="mx-auto max-w-[1400px] p-6">
+      <PageHeader
+        title="Assets"
+        subtitle="Hosts under active monitoring. Only add targets you own or are authorized to test."
+        actions={
+          <Link href="/assets/new">
+            <Button size="md">
+              <Plus className="h-4 w-4" aria-hidden /> Add asset
+            </Button>
+          </Link>
+        }
+      />
+
+      {error ? <div className="mt-4"><ErrorBanner message={error} /></div> : null}
+
+      <div className="mt-6">
+        <SectionHeader title={`${assets.length} asset${assets.length === 1 ? "" : "s"}`}>
+          {isLoading ? <Spinner label="Loading…" /> : null}
+        </SectionHeader>
+        <Card className="overflow-x-auto">
+          {isError ? (
+            <ErrorBanner message="Could not load assets." />
+          ) : isLoading || !data ? (
+            <div className="flex flex-col gap-3 p-1">
+              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
+            </div>
+          ) : assets.length === 0 ? (
+            <Empty icon={<Globe className="h-8 w-8" aria-hidden />}>
+              No assets yet.{" "}
+              <Link href="/assets/new" className="text-blue-400 hover:underline">
+                Add your first target
+              </Link>{" "}
+              to start monitoring.
+            </Empty>
+          ) : (
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr className="border-b border-[rgba(255,255,255,0.07)]">
+                  <th className="th">Asset</th>
+                  <th className="th">Authorization</th>
+                  <th className="th">Last scan</th>
+                  <th className="th text-right">Open findings</th>
+                  <th className="th text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assets.map((a) => (
+                  <tr
+                    key={a.id}
+                    className="border-b border-[rgba(255,255,255,0.04)] transition-colors last:border-0 hover:bg-[rgba(255,255,255,0.015)]"
+                  >
+                    <td className="td">
+                      <Link
+                        href={`/assets/${a.id}`}
+                        className="font-medium text-slate-200 hover:text-blue-300"
+                      >
+                        {a.name}
+                      </Link>
+                      <div className="truncate text-xs text-slate-500">{a.host}</div>
+                    </td>
+                    <td className="td">
+                      {a.authorization_confirmed ? (
+                        <Badge color="green">
+                          <ShieldCheck className="h-3 w-3" aria-hidden /> Confirmed
+                        </Badge>
+                      ) : (
+                        <Badge color="amber">
+                          <TriangleAlert className="h-3 w-3" aria-hidden /> Not confirmed
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="td">
+                      {latestStatus.get(a.id) ? (
+                        <span className="flex flex-col gap-0.5">
+                          <ScanStatusBadge status={latestStatus.get(a.id)!} />
+                          {a.last_scan_at ? (
+                            <TimeAgo date={a.last_scan_at} className="text-[10px] text-slate-600" />
+                          ) : null}
+                        </span>
+                      ) : a.last_scan_at ? (
+                        <TimeAgo date={a.last_scan_at} className="text-slate-500" />
+                      ) : (
+                        <span className="text-slate-500">never scanned</span>
+                      )}
+                    </td>
+                    <td className="td text-right">
+                      {a.open_findings != null && a.open_findings > 0 ? (
+                        <Link
+                          href={`/findings?asset_id=${a.id}&status=OPEN%2COPEN_RISK_ACCEPTED%2COPEN_TRACKED`}
+                        >
+                          <Badge color="CRITICAL">{a.open_findings} open</Badge>
+                        </Link>
+                      ) : (
+                        <span className="text-slate-600">0</span>
+                      )}
+                    </td>
+                    <td className="td text-right">
+                      <span className="inline-flex justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => scan.mutate(a)}
+                          disabled={scan.isPending}
+                        >
+                          {scan.isPending && scan.variables?.id === a.id
+                            ? "Queuing…"
+                            : "Scan now"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            if (confirm(`Delete asset "${a.name}"? Scans and findings are kept in audit history.`)) {
+                              del.mutate(a);
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+        <p className="mt-3 text-[11px] text-slate-600">
+          Last checked <NowStamp /> ·
+          SSRF guards block private, loopback, and metadata targets unless
           SCAN_ALLOW_PRIVATE_TARGETS is set for lab testing.
         </p>
-      </Card>
-
-      <Card>
-        <h1 className="mb-3 text-lg font-semibold text-white">Assets</h1>
-        {isLoading || !data ? (
-          <Spinner />
-        ) : data.assets.length === 0 ? (
-          <Empty>No assets yet.</Empty>
-        ) : (
-          <div className="divide-y divide-[#1f2a3d]">
-            {data.assets.map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
-                <div className="min-w-0">
-                  <Link href={`/assets/${a.id}`} className="font-medium text-slate-100 hover:text-blue-300">
-                    {a.name}
-                  </Link>
-                  <div className="truncate text-xs text-slate-500">{a.host}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {a.open_findings !== null && a.open_findings > 0 && (
-                    <Badge color="CRITICAL">{a.open_findings} open</Badge>
-                  )}
-                  {a.last_scan_status && (
-                    <Badge color={a.last_scan_status === "COMPLETED" ? "green" : "CRITICAL"}>
-                      {a.last_scan_status}
-                    </Badge>
-                  )}
-                  {a.monitoring_enabled && <Badge color="neutral">monitored</Badge>}
-                  <Button variant="secondary" onClick={() => scan.mutate(a)} disabled={scan.isPending}>
-                    {scan.isPending && scan.variables?.id === a.id ? "Queuing…" : "Scan now"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      if (confirm(`Delete asset "${a.name}"?`)) del.mutate(a);
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      </div>
     </div>
   );
 }

@@ -4,19 +4,35 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  Globe,
+  Radar,
+  Search,
+  ShieldCheck,
+  TriangleAlert,
+  UserRoundPlus,
+} from "lucide-react";
 import { ApiError, api } from "@/lib/api";
-import { Badge, Button, Card, Empty, SectionTitle, Spinner } from "@/components/ui";
-
-function statusColor(s: string) {
-  if (s === "COMPLETED") return "green" as const;
-  if (s === "FAILED") return "CRITICAL" as const;
-  return "neutral" as const;
-}
+import type { Scan } from "@/lib/types";
+import {
+  Badge,
+  Button,
+  Card,
+  Empty,
+  ErrorBanner,
+  Spinner,
+  TimeAgo,
+} from "@/components/ui";
+import { PageHeader, SectionHeader } from "@/components/page";
+import { ScanStatusBadge } from "@/components/badges";
+import { DashboardMetric } from "@/components/metrics";
+import { formatDateTime, formatDuration, friendlyScanError } from "@/lib/format";
 
 export default function AssetDetailPage() {
   const { id: assetId } = useParams<{ id: string }>();
   const qc = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const asset = useQuery({
     queryKey: ["asset", assetId],
@@ -25,167 +41,278 @@ export default function AssetDetailPage() {
   });
   const scans = useQuery({
     queryKey: ["asset-scans", assetId],
-    queryFn: () => api.assetScans(assetId),
+    queryFn: () => api.scans(assetId, 50),
     refetchInterval: 10_000,
   });
   const contacts = useQuery({
     queryKey: ["asset-contacts", assetId],
     queryFn: () => api.contacts(assetId),
   });
+  const findings = useQuery({
+    queryKey: ["asset-findings", assetId],
+    queryFn: () => api.findings({ asset_id: assetId }),
+  });
 
   const doScan = useMutation({
     mutationFn: () => api.queueScan(assetId),
+    onMutate: () => setActionError(null),
     onSuccess: () => {
-      setError(null);
       qc.invalidateQueries({ queryKey: ["asset-scans", assetId] });
       qc.invalidateQueries({ queryKey: ["asset", assetId] });
     },
     onError: (e) =>
-      setError(e instanceof ApiError ? e.message : "Failed to queue scan."),
+      setActionError(e instanceof ApiError ? e.message : "Failed to queue scan."),
   });
+
+  /* Discover fix: show backend errors visibly and poll contacts briefly
+   * after the async task is queued (202), so results appear without a
+   * manual refresh and duplicate clicks are less likely. */
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverError, setDiscoverError] = useState<string | null>(null);
   const discover = useMutation({
     mutationFn: () => api.discoverContacts(assetId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["asset-contacts", assetId] }),
+    onMutate: () => {
+      setDiscoverError(null);
+      setDiscovering(true);
+    },
+    onSuccess: (ack) => {
+      const stop = qc.invalidateQueries({ queryKey: ["asset-contacts", assetId] });
+      const t = setInterval(() => {
+        qc.invalidateQueries({ queryKey: ["asset-contacts", assetId] });
+      }, 4_000);
+      setTimeout(() => {
+        clearInterval(t);
+        setDiscovering(false);
+      }, 12_000);
+      return stop.finally(() => clearInterval(t));
+    },
+    onError: (e) => {
+      setDiscovering(false);
+      setDiscoverError(
+        e instanceof ApiError
+          ? e.message
+          : "Contact discovery failed to start. Try again — errors are no longer silent.",
+      );
+    },
   });
+
   const confirmAuth = useMutation({
-    mutationFn: (v: boolean) =>
-      api.updateAsset(assetId, { authorization_confirmed: v }),
+    mutationFn: (v: boolean) => api.updateAsset(assetId, { authorization_confirmed: v }),
+    onMutate: () => setActionError(null),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["asset", assetId] }),
     onError: (e) =>
-      setError(e instanceof ApiError ? e.message : "Failed to update asset."),
+      setActionError(e instanceof ApiError ? e.message : "Failed to update asset."),
   });
 
-  if (asset.isLoading) return <Spinner />;
-  if (asset.isError || !asset.data)
-    return <Empty>Asset not found (or not yours).</Empty>;
+  if (asset.isLoading) {
+    return (
+      <div className="p-6">
+        <Spinner label="Loading asset…" />
+      </div>
+    );
+  }
+  if (asset.isError || !asset.data) {
+    return (
+      <div className="max-w-2xl p-6">
+        <Empty icon={<Globe className="h-8 w-8" aria-hidden />}>
+          Asset not found (or not yours).{" "}
+          <Link href="/assets" className="text-blue-400 hover:underline">
+            Back to assets
+          </Link>
+        </Empty>
+      </div>
+    );
+  }
   const a = asset.data;
+  const contactCount = contacts.data?.contacts.length ?? 0;
+  const openFindings =
+    findings.data?.findings.filter((f) => f.status.startsWith("OPEN")).length ??
+    a.open_findings ??
+    0;
+  const lastScan: Scan | undefined = scans.data?.scans[0];
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-white">{a.name}</h1>
-            <p className="text-xs text-slate-500">{a.url}</p>
-            {a.description && (
-              <p className="mt-1 text-sm text-slate-400">{a.description}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
+    <div className="mx-auto max-w-[1400px] p-6">
+      <Link
+        href="/assets"
+        className="inline-flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
+      >
+        <ArrowLeft className="h-3 w-3" aria-hidden /> Back to assets
+      </Link>
+      <PageHeader
+        title={a.name}
+        subtitle={
+          <span>
+            <a href={a.url} className="text-slate-400 underline decoration-slate-700 hover:text-slate-200">
+              {a.url}
+            </a>
+          </span>
+        }
+        actions={
+          <>
             {a.authorization_confirmed ? (
-              <Badge color="green">authorized</Badge>
+              <Badge color="green">
+                <ShieldCheck className="h-3 w-3" aria-hidden /> Authorized
+              </Badge>
             ) : (
-              <Button
-                variant="secondary"
-                onClick={() => confirmAuth.mutate(true)}
-                disabled={confirmAuth.isPending}
-              >
+              <Button variant="secondary" onClick={() => confirmAuth.mutate(true)} disabled={confirmAuth.isPending}>
+                <ShieldCheck className="h-4 w-4" aria-hidden />
                 {confirmAuth.isPending ? "Confirming…" : "Confirm authorization"}
               </Button>
             )}
-            {a.open_findings !== null && a.open_findings > 0 && (
-              <Badge color="CRITICAL">{a.open_findings} open</Badge>
-            )}
             <Button onClick={() => doScan.mutate()} disabled={doScan.isPending}>
+              <Radar className="h-4 w-4" aria-hidden />
               {doScan.isPending ? "Queuing…" : "Scan now"}
             </Button>
-          </div>
-        </div>
-        {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-        <div className="mt-3 grid grid-cols-2 text-xs text-slate-500 sm:grid-cols-4">
-          <div>Monitoring: {a.monitoring_enabled ? "on" : "off"}</div>
-          <div>Interval: {Math.round(a.scan_interval_seconds / 3600)}h</div>
-          <div>
-            Last scan:{" "}
-            {a.last_scan_at ? new Date(a.last_scan_at).toLocaleString() : "never"}
-          </div>
-          <div>
-            Next scan:{" "}
-            {a.next_scan_at ? new Date(a.next_scan_at).toLocaleString() : "—"}
-          </div>
-        </div>
-      </Card>
+          </>
+        }
+      />
 
-      <Card>
-        <SectionTitle>Scans</SectionTitle>
+      {a.description ? <p className="mt-2 text-sm text-slate-400">{a.description}</p> : null}
+
+      {actionError ? <div className="mt-4"><ErrorBanner message={actionError} /></div> : null}
+
+      {/* Metric strip */}
+      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <DashboardMetric
+          label="Open findings"
+          value={openFindings}
+          icon={TriangleAlert}
+          accent={openFindings > 0 ? "red" : "green"}
+          href={`/findings?asset_id=${assetId}&status=OPEN%2COPEN_RISK_ACCEPTED%2COPEN_TRACKED`}
+        />
+        <DashboardMetric
+          label="Scans"
+          value={scans.data?.scans.length ?? "—"}
+          icon={Radar}
+          accent="blue"
+          href={`/scans?asset_id=${assetId}`}
+        />
+        <DashboardMetric
+          label="Contacts"
+          value={contactCount}
+          icon={UserRoundPlus}
+          accent={contactCount > 0 ? "green" : "amber"}
+        />
+        <Card className="col-span-2 lg:col-span-1">
+          <div className="flex items-start justify-between">
+            <span className="text-xs font-medium text-slate-400">Monitoring</span>
+            <Badge color={a.monitoring_enabled ? "green" : "neutral"}>
+              {a.monitoring_enabled ? "enabled" : "paused"}
+            </Badge>
+          </div>
+          <div className="mt-2 flex flex-col gap-1 text-[11px] text-slate-500">
+            <span>Interval: {Math.round(a.scan_interval_seconds / 3600)}h</span>
+            <span>
+              Last: {a.last_scan_at ? <TimeAgo date={a.last_scan_at} /> : "never"}
+            </span>
+            <span>
+              Next: {a.next_scan_at ? formatDateTime(a.next_scan_at) : "—"}
+              {!a.authorization_confirmed ? " (pending authorization)" : ""}
+            </span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Scan history */}
+      <Card className="mt-6">
+        <SectionHeader title="Scan history" />
         {scans.isLoading || !scans.data ? (
           <Spinner />
         ) : scans.data.scans.length === 0 ? (
-          <Empty>No scans yet.</Empty>
+          <Empty icon={<Radar className="h-8 w-8" aria-hidden />}>
+            No scans yet — run the first one now.
+          </Empty>
         ) : (
-          <div className="divide-y divide-[#1f2a3d]">
+          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
             {scans.data.scans.map((s) => (
-              <div
-                key={s.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
-              >
-                <div>
-                  <span className="text-slate-300">
-                    {new Date(s.created_at).toLocaleString()}
-                  </span>
-                  {s.duration_seconds !== null && (
-                    <span className="ml-2 text-xs text-slate-600">
-                      {s.duration_seconds}s
-                    </span>
-                  )}
-                  {s.status === "FAILED" && s.error && (
-                    <span className="ml-2 text-xs text-red-400">{s.error}</span>
-                  )}
-                </div>
-                <Badge color={statusColor(s.status)}>{s.status}</Badge>
-              </div>
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-slate-300">{formatDateTime(s.created_at)}</span>
+                  {s.duration_seconds !== null && s.status === "COMPLETED"
+                    ? <span className="text-xs text-slate-600">{formatDuration(s.duration_seconds)}</span>
+                    : null}
+                  {s.status === "FAILED" && s.error ? (
+                    <span className="text-xs text-red-400">{friendlyScanError(s.error)}</span>
+                  ) : null}
+                </span>
+                <span className="flex items-center gap-2">
+                  <ScanStatusBadge status={s.status} />
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
+        {lastScan ? (
+          <p className="mt-2 text-[11px] text-slate-600">
+            Latest known state: {formatDateTime(lastScan.created_at)} — resumed
+            monitoring picks the schedule automatically after authorization.
+          </p>
+        ) : null}
       </Card>
 
-      <Card>
-        <div className="flex items-center justify-between">
-          <SectionTitle>Disclosure contacts</SectionTitle>
-          <Button
-            variant="secondary"
-            onClick={() => discover.mutate()}
-            disabled={discover.isPending}
-          >
-            {discover.isPending ? "Discovering…" : "Discover contacts"}
-          </Button>
-        </div>
+      {/* Contacts */}
+      <Card className="mt-6">
+        <SectionHeader
+          title="Disclosure contacts"
+          children={
+            <span className="flex items-center gap-2">
+              {discoverError ? (
+                <span className="text-xs text-red-400">{discoverError}</span>
+              ) : discovering ? (
+                <span className="flex items-center gap-1.5 text-xs text-blue-300">
+                  <Spinner label="" />
+                  discovering…
+                </span>
+              ) : null}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => discover.mutate()}
+                disabled={discover.isPending || discovering}
+              >
+                <Search className="h-3.5 w-3.5" aria-hidden />
+                {discovering ? "Discovering…" : "Discover contacts"}
+              </Button>
+            </span>
+          }
+        />
         {contacts.isLoading || !contacts.data ? (
           <Spinner />
         ) : contacts.data.contacts.length === 0 ? (
-          <Empty>
+          <Empty icon={<UserRoundPlus className="h-8 w-8" aria-hidden />}>
             No contacts discovered yet. /.well-known/security.txt and meta-tag
             discovery run without exploits.
           </Empty>
         ) : (
-          <div className="divide-y divide-[#1f2a3d]">
+          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
             {contacts.data.contacts.map((c) => (
-              <div
-                key={c.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
-              >
-                <div>
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                <span className="flex flex-wrap items-center gap-2">
                   <span className="text-slate-200">
                     {c.email ?? c.contact_url}
                   </span>
-                  <span className="ml-2 text-xs text-slate-600">
-                    via {c.source}
+                  <span className="text-xs text-slate-600">
+                    via {c.source.replace("_", " ").toLowerCase()}
                   </span>
-                </div>
-                <Badge color={c.confidence === "HIGH" ? "green" : "neutral"}>
-                  {c.confidence}
-                </Badge>
-              </div>
+                  {c.encryption_url || c.policy_url ? (
+                    <span className="text-xs text-slate-600">
+                      · policy/encryption published
+                    </span>
+                  ) : null}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Badge color={c.confidence === "HIGH" ? "green" : "neutral"}>
+                    {c.confidence} confidence
+                  </Badge>
+                  <TimeAgo date={c.discovered_at} className="text-[11px] text-slate-600" />
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </Card>
 
-      <p className="text-center text-xs text-slate-600">
-        <Link href="/assets" className="hover:text-slate-400">
-          ← Back to assets
-        </Link>
-      </p>
+      </Card>
     </div>
   );
 }
