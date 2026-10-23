@@ -8,6 +8,7 @@ from types import SimpleNamespace
 os.environ["DATABASE_URL"] = "sqlite:///./test_api.db"
 os.environ["SCAN_ALLOW_PRIVATE_TARGETS"] = "1"
 os.environ["SMTP_HOST"] = "mailpit.invalid"
+os.environ["RATE_LIMIT_FAIL_CLOSED"] = "0"
 
 
 def _fresh_db():
@@ -85,18 +86,12 @@ def patched_lab(monkeypatch):
 
 
 class Api:
-    def __init__(self, client, cookies, email=""):
+    def __init__(self, client, email):
         self.client = client
-        self.cookies = dict(cookies)
         self.email = email
 
     def request(self, method, url, **kwargs):
-        headers = dict(kwargs.pop("headers", {}))
-        headers.pop("cookies", None)
-        headers.setdefault("x-csrf-token", self.cookies.get("sentinel_csrf", ""))
-        headers.setdefault("Cookie", "; ".join(
-            f"{k}={v}" for k, v in self.cookies.items()))
-        return self.client.request(method, url, headers=headers, **kwargs)
+        return self.client.request(method, url, **kwargs)
 
     def get(self, url, **kw):
         return self.request("GET", url, **kw)
@@ -162,52 +157,22 @@ def _stub_celery_tasks(client, monkeypatch):
     monkeypatch.setattr(tasks, "send_test_email", StubTask(_do_test))
 
 
-def _pull_cookies(client, registration_response, email):
-    cookies = {}
-    for k in ("sentinel_session", "sentinel_csrf"):
-        val = registration_response.cookies.get(k)
-        if val:
-            cookies[k] = val
-    # remove session crumbs from the shared jar to avoid cross-user conflicts
-    for key in ("sentinel_session", "sentinel_csrf"):
-        try:
-            del client.cookies[key]
-        except KeyError:
-            pass
-    return Api(client, cookies, email=email)
+OWNER_EMAIL = "owner@sentinel.local"
 
 
 @pytest.fixture()
 def registered_user(client):
-    import uuid
-
-    email = f"{uuid.uuid4().hex[:10]}@example.com"
-    r = client.post("/api/auth/register",
-                    json={"email": email, "password": "Sup3rSecret!2026"})
-    assert r.status_code == 201, r.text
-    return _pull_cookies(client, r, email)
+    return Api(client, OWNER_EMAIL)
 
 
 @pytest.fixture()
 def api_user_a(client):
-    import uuid
-
-    email = f"a-{uuid.uuid4().hex[:10]}@example.com"
-    r = client.post("/api/auth/register",
-                    json={"email": email, "password": "Sup3rSecret!2026"})
-    assert r.status_code == 201, r.text
-    return _pull_cookies(client, r, email)
+    return Api(client, OWNER_EMAIL)
 
 
 @pytest.fixture()
 def api_user_b(client):
-    import uuid
-
-    email = f"b-{uuid.uuid4().hex[:10]}@example.com"
-    r = client.post("/api/auth/register",
-                    json={"email": email, "password": "Sup3rSecret!2026"})
-    assert r.status_code == 201, r.text
-    return _pull_cookies(client, r, email)
+    return Api(client, OWNER_EMAIL)
 
 
 @pytest.fixture()

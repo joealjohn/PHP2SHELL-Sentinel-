@@ -10,8 +10,7 @@ from app.services import observability
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, selectinload
 
-router = APIRouter(prefix="/findings", tags=["findings"],
-                   dependencies=[Depends(deps.require_csrf)])
+router = APIRouter(prefix="/findings", tags=["findings"])
 
 
 def _own_finding(db: Session, user: User, finding_id: str) -> Finding:
@@ -100,8 +99,7 @@ def get_finding(finding_id: str, db: Session = Depends(get_db),
 @router.post("/{finding_id}/rescan", status_code=202)
 def rescan_finding(finding_id: str, request: Request, db: Session = Depends(get_db),
                    user: User = Depends(deps.get_current_user)):
-    enforce(request, action="scan-start", max_requests=10, window_seconds=300,
-            user_scope=str(user.id))
+    enforce(request, action="scan-start", max_requests=10, window_seconds=300)
     finding = _own_finding(db, user, finding_id)
     asset = db.get(Asset, finding.asset_id)
     deps.require_authorized_asset(asset)
@@ -125,8 +123,7 @@ def rescan_finding(finding_id: str, request: Request, db: Session = Depends(get_
 def verify_fix(finding_id: str, request: Request, db: Session = Depends(get_db),
                user: User = Depends(deps.get_current_user)):
     """Queues a fresh scan for remediation verification."""
-    enforce(request, action="scan-start", max_requests=10, window_seconds=300,
-            user_scope=str(user.id))
+    enforce(request, action="scan-start", max_requests=10, window_seconds=300)
     finding = _own_finding(db, user, finding_id)
     asset = db.get(Asset, finding.asset_id)
     deps.require_authorized_asset(asset)

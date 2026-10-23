@@ -52,7 +52,7 @@ function VulnerabilityList() {
             vulnerability ID once scans run.
           </Empty>
         ) : (
-          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+          <ul className="divide-y divide-line">
             {vulns.map(([vid, items]) => {
               const open = items.filter((i) => i.status.startsWith("OPEN")).length;
               return (
@@ -60,18 +60,18 @@ function VulnerabilityList() {
                   <Link href={`/findings?vuln=${encodeURIComponent(vid)}`} className="group block">
                     <div className="flex flex-wrap items-center gap-2">
                       <SeverityBadge severity={items[0].severity} />
-                      <span className="font-mono text-xs text-slate-500">{vid}</span>
+                      <span className="font-mono text-xs text-ink-3">{vid}</span>
                       <Badge color={open > 0 ? "CRITICAL" : "green"}>
                         {open > 0 ? `${open} open` : "all resolved"}
                       </Badge>
-                      <span className="ml-auto text-[10px] text-slate-600">
+                      <span className="ml-auto text-[10px] text-ink-3">
                         {items.length} detection{items.length === 1 ? "" : "s"}
                       </span>
                     </div>
-                    <div className="mt-1 text-sm font-medium text-slate-200 group-hover:text-blue-300">
+                    <div className="mt-1 text-sm font-medium text-ink group-hover:text-accent">
                       {items[0].title}
                     </div>
-                    <div className="mt-0.5 text-xs text-slate-500">
+                    <div className="mt-0.5 text-xs text-ink-3">
                       Version window: {items[0].detected_version ?? "?"} → {items[0].fixed_version ?? "n/a"}
                     </div>
                   </Link>
@@ -81,7 +81,7 @@ function VulnerabilityList() {
           </ul>
         )}
       </Card>
-      <p className="mt-3 flex items-start gap-2 text-[11px] text-slate-600">
+      <p className="mt-3 flex items-start gap-2 text-[11px] text-ink-3">
         <BookLock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
         Entries come from the offline vulnerability database bundled with the
         scanner in this container — no cloud lookup occurs and no data leaves

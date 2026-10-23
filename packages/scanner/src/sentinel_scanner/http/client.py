@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import ssl
 import time
 from dataclasses import dataclass
 from typing import Self
 from urllib.parse import urljoin, urlsplit
 
+import certifi
 import httpx
 from sentinel_shared.redaction import redact_headers
 from sentinel_shared.urlguard import (
@@ -16,9 +19,11 @@ from sentinel_shared.urlguard import (
 
 from sentinel_scanner.core.config import ScannerConfig
 from sentinel_scanner.core.errors import ScanError, ScanTargetError
+from sentinel_scanner.http.tls import build_aia_ssl_context
 from sentinel_scanner.models import FetchResult, RedirectHop
 
 _USER_AGENT_HEADER = "User-Agent"
+_log = logging.getLogger("sentinel.http")
 
 
 @dataclass
@@ -65,10 +70,22 @@ class SentinelHttpClient:
         self._sem: asyncio.Semaphore | None = None
         self._client: httpx.AsyncClient | None = None
         self._requests_made = 0
+        # True after AIA chasing has already been attempted for this client
+        # instance, preventing infinite retry loops.
+        self._aia_attempted = False
 
     async def __aenter__(self) -> Self:
         self._sem = asyncio.Semaphore(max(1, self.config.concurrency))
-        self._client = httpx.AsyncClient(
+        # Build a strict SSL context backed by certifi's up-to-date CA bundle.
+        # This improves intermediate-cert resolution without ever weakening
+        # certificate verification — verify_mode stays CERT_REQUIRED.
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+        self._client = self._make_client(ssl_ctx)
+        return self
+
+    def _make_client(self, ssl_ctx: ssl.SSLContext) -> httpx.AsyncClient:
+        """Create an httpx.AsyncClient with the given SSL context."""
+        return httpx.AsyncClient(
             follow_redirects=False,
             timeout=httpx.Timeout(
                 connect=self.config.connect_timeout,
@@ -77,10 +94,9 @@ class SentinelHttpClient:
                 pool=self.config.connect_timeout,
             ),
             limits=httpx.Limits(max_connections=max(2, self.config.concurrency)),
-            verify=True,
+            verify=ssl_ctx,
             http2=False,
         )
-        return self
 
     async def __aexit__(self, *_args: object) -> None:
         if self._client is not None:
@@ -137,6 +153,69 @@ class SentinelHttpClient:
                             "Connection": "close",
                         },
                     )
+                except httpx.ConnectError as exc:
+                    # Distinguish TLS chain failures from generic connectivity
+                    # problems so callers can report them with a clear diagnosis.
+                    # Certificate verification is NEVER bypassed.
+                    cause = exc.__cause__ or exc.__context__
+                    if _is_tls_cert_error(cause):
+                        if _is_hostname_mismatch_error(cause):
+                            # The chain itself verified (possibly after AIA
+                            # enrichment); the certificate simply does not
+                            # cover the exact hostname in the URL - usually a
+                            # "www." variant of the site's canonical host.
+                            return FetchOutcome(
+                                ok=False,
+                                error_code="TLS_CERT_HOSTNAME_MISMATCH",
+                                error=(
+                                    f"TLS certificate is not valid for the exact "
+                                    f"hostname {host!r} in {current!r}. Wildcard "
+                                    f"certificates cover only one label - try the "
+                                    f"site's canonical address (often without the "
+                                    f"leading 'www.'). Sentinel never bypasses "
+                                    f"certificate verification. detail={exc}"
+                                ),
+                            )
+                        if not self._aia_attempted:
+                            # Automatically chase AIA intermediate-cert URLs
+                            # embedded in the server's own leaf certificate.
+                            self._aia_attempted = True
+                            port = urlsplit(current).port or 443
+                            _log.info(
+                                "sentinel.http: TLS chain incomplete for %s — "
+                                "attempting AIA intermediate fetch", host
+                            )
+                            aia_ctx = await build_aia_ssl_context(host, port)
+                            if aia_ctx is not None:
+                                # Replace the httpx client with one that has
+                                # the fetched intermediates loaded, then retry
+                                # this hop transparently.
+                                if self._client is not None:
+                                    await self._client.aclose()
+                                self._client = self._make_client(aia_ctx)
+                                _log.info(
+                                    "sentinel.http: AIA enrichment succeeded "
+                                    "for %s — retrying hop", host
+                                )
+                                visited.discard(current)  # allow the retry
+                                continue
+                            _log.warning(
+                                "sentinel.http: AIA chase found no intermediates "
+                                "for %s", host
+                            )
+                        return FetchOutcome(
+                            ok=False,
+                            error_code="TLS_CERT_CHAIN_INCOMPLETE",
+                            error=(
+                                f"TLS certificate chain could not be verified for "
+                                f"{current!r}. The server likely omits one or more "
+                                f"intermediate certificates from its TLS handshake. "
+                                f"Sentinel never bypasses certificate verification. "
+                                f"detail={exc}"
+                            ),
+                        )
+                    return FetchOutcome(ok=False, error_code="UNREACHABLE",
+                                        error=f"type={type(exc).__name__} detail={exc}")
                 except (httpx.TimeoutException, httpx.TransportError) as exc:
                     return FetchOutcome(ok=False, error_code="UNREACHABLE",
                                         error=f"type={type(exc).__name__} detail={exc}")
@@ -254,3 +333,49 @@ def _sanitize_headers(headers: dict[str, str]) -> dict[str, str]:
 
 def _redirect_schemes_differ_unsafely(scheme: str) -> bool:
     return scheme.lower() not in ("http", "https")
+
+
+def _is_hostname_mismatch_error(exc: BaseException | None) -> bool:
+    """Return True when the verification failure is specifically a
+    hostname/name mismatch (the chain itself is otherwise complete).
+
+    Distinguished from chain errors so users get the right fix: a wildcard
+    certificate covers only one label, so e.g. ``www.exams.host`` will never
+    match ``*.host`` even though the chain is fine.
+    """
+    seen: set[int] = set()
+    node: BaseException | None = exc
+    while node is not None and id(node) not in seen:
+        seen.add(id(node))
+        if isinstance(node, ssl.SSLCertVerificationError):
+            text = str(getattr(node, "verify_message", "")) or str(node)
+        elif isinstance(node, ssl.SSLError):
+            text = str(node)
+        else:
+            node = node.__cause__ or node.__context__
+            continue
+        lowered = text.lower()
+        if "hostname mismatch" in lowered or "certificate is not valid for" in lowered:
+            return True
+        node = node.__cause__ or node.__context__
+    return False
+
+
+def _is_tls_cert_error(exc: BaseException | None) -> bool:
+    """Return True when *exc* (or its cause chain) is an SSL certificate error.
+
+    httpx wraps low-level SSL failures inside ConnectError.  The actual
+    ssl.SSLCertVerificationError may sit one or two levels deep in the
+    __cause__ / __context__ chain, so we walk the whole chain.
+    """
+    seen: set[int] = set()
+    node: BaseException | None = exc
+    while node is not None and id(node) not in seen:
+        seen.add(id(node))
+        if isinstance(node, ssl.SSLCertVerificationError):
+            return True
+        # Also catch the parent ssl.SSLError with CERTIFICATE_VERIFY_FAILED
+        if isinstance(node, ssl.SSLError) and "CERTIFICATE_VERIFY_FAILED" in str(node):
+            return True
+        node = node.__cause__ or node.__context__
+    return False

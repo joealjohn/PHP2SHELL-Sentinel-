@@ -86,7 +86,7 @@ export default function AssetsPage() {
           ) : assets.length === 0 ? (
             <Empty icon={<Globe className="h-8 w-8" aria-hidden />}>
               No assets yet.{" "}
-              <Link href="/assets/new" className="text-blue-400 hover:underline">
+              <Link href="/assets/new" className="text-accent hover:underline">
                 Add your first target
               </Link>{" "}
               to start monitoring.
@@ -94,7 +94,7 @@ export default function AssetsPage() {
           ) : (
             <table className="w-full min-w-[720px]">
               <thead>
-                <tr className="border-b border-[rgba(255,255,255,0.07)]">
+                <tr className="border-b border-line">
                   <th className="th">Asset</th>
                   <th className="th">Authorization</th>
                   <th className="th">Last scan</th>
@@ -106,16 +106,16 @@ export default function AssetsPage() {
                 {assets.map((a) => (
                   <tr
                     key={a.id}
-                    className="border-b border-[rgba(255,255,255,0.04)] transition-colors last:border-0 hover:bg-[rgba(255,255,255,0.015)]"
+                    className="border-b border-line transition-colors last:border-0 hover:bg-raised"
                   >
                     <td className="td">
                       <Link
                         href={`/assets/${a.id}`}
-                        className="font-medium text-slate-200 hover:text-blue-300"
+                        className="font-medium text-ink hover:text-accent"
                       >
                         {a.name}
                       </Link>
-                      <div className="truncate text-xs text-slate-500">{a.host}</div>
+                      <div className="truncate text-xs text-ink-3">{a.host}</div>
                     </td>
                     <td className="td">
                       {a.authorization_confirmed ? (
@@ -133,13 +133,13 @@ export default function AssetsPage() {
                         <span className="flex flex-col gap-0.5">
                           <ScanStatusBadge status={latestStatus.get(a.id)!} />
                           {a.last_scan_at ? (
-                            <TimeAgo date={a.last_scan_at} className="text-[10px] text-slate-600" />
+                            <TimeAgo date={a.last_scan_at} className="text-[10px] text-ink-3" />
                           ) : null}
                         </span>
                       ) : a.last_scan_at ? (
-                        <TimeAgo date={a.last_scan_at} className="text-slate-500" />
+                        <TimeAgo date={a.last_scan_at} className="text-ink-3" />
                       ) : (
-                        <span className="text-slate-500">never scanned</span>
+                        <span className="text-ink-3">never scanned</span>
                       )}
                     </td>
                     <td className="td text-right">
@@ -150,7 +150,7 @@ export default function AssetsPage() {
                           <Badge color="CRITICAL">{a.open_findings} open</Badge>
                         </Link>
                       ) : (
-                        <span className="text-slate-600">0</span>
+                        <span className="text-ink-3">0</span>
                       )}
                     </td>
                     <td className="td text-right">
@@ -184,7 +184,7 @@ export default function AssetsPage() {
             </table>
           )}
         </Card>
-        <p className="mt-3 text-[11px] text-slate-600">
+        <p className="mt-3 text-[11px] text-ink-3">
           Last checked <NowStamp /> ·
           SSRF guards block private, loopback, and metadata targets unless
           SCAN_ALLOW_PRIVATE_TARGETS is set for lab testing.

@@ -10,12 +10,12 @@ export function SeverityBadge({ severity }: { severity: string }) {
   const label = severityLabel[severity] ?? severity;
   const dot =
     severity === "CRITICAL"
-      ? "bg-[var(--sev-critical)]"
+      ? "bg-crit"
       : severity === "HIGH"
-        ? "bg-[var(--sev-high)]"
+        ? "bg-high"
         : severity === "MEDIUM"
-          ? "bg-[var(--sev-medium)]"
-          : "bg-[var(--sev-low)]";
+          ? "bg-med"
+          : "bg-low";
   return (
     <Badge color={severityColor(severity)}>
       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />

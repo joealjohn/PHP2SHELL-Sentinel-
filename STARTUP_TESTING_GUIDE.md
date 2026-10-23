@@ -28,11 +28,7 @@ Check the two local Python entrypoints exist in the venv: `celery.exe`,
 ```powershell
 # 1) create your env file (never commit it; it is gitignored)
 Copy-Item .env.example .env
-
-# 2) generate a STRONG session secret and paste it into .env
-#    (the checked-in example values are deterministic and NOT safe)
-$secret = [Guid]::NewGuid().ToString("N") + [Guid]::NewGuid().ToString("N")
-notepad .env      # replace the SESSION_SECRET=... placeholder with $secret
+# single-user app: no secret to generate; optionally set OWNER_EMAIL in .env
 ```
 
 **Port collisions (you already hit this once):** host port 8000 on this
@@ -73,8 +69,8 @@ docker compose ps                        # every service "healthy" or "running"
 curl http://127.0.0.1:8010/health        # 200, {"status":"ok"}
 curl http://127.0.0.1:8010/ready         # 200 — DB+Redis migrations checked
 curl -o NUL -s -w "%{http_code}" http://localhost:3005   # 200 (web UI)
-# /api proxy test through the web server itself (401 = proxy works, no session):
-curl -o NUL -s -w "%{http_code}" http://localhost:3005/api/auth/me
+# /api proxy test through the web server itself (200 = proxy works):
+curl -o NUL -s -w "%{http_code}" http://localhost:3005/api/assets
 ```
 
 - Mailpit UI (fake mailbox): **http://localhost:8025** — inbox for all
@@ -150,13 +146,13 @@ Use the **Docker stack** and its labs. In `.env` set
 `SCAN_ALLOW_PRIVATE_TARGETS=1` and the host ports from §2 — the E2E
 session used the compose DNS name for the target, exactly as below.
 
-1. **Register** — open `http://localhost:3005` → create an account
-   (password policy needs one upper, one lower, one digit, 8+ chars).
+1. **Open the app** — `http://localhost:3005`. There is no login; the app
+   opens straight to the dashboard as the single local owner.
 2. **Add asset** — Assets page. Name it, URL = `http://lab-vulnerable:80`
    (lab-vulnerable is the vulnerable lab). The form will not submit until
    you tick **"I confirm I own this host…"** — the mandatory authorization
-   checkbox. A second account without the checkbox (or any asset created
-   without it via API) gets `409 AUTHORIZATION_REQUIRED` when scanning.
+   checkbox. An asset created without it via API gets
+   `409 AUTHORIZATION_REQUIRED` when scanning.
 3. **Scan** — asset detail → *Scan now*. The worker executes a real,
    non-exploitative scan: detection only, no payloads, ~0.4 s on the lab.
 4. **Finding appears** — CRITICAL `PHP2SHELL-2026-A`, state
@@ -200,12 +196,12 @@ the api/worker.
 ## 6. Automated testing (all gates) — **[verified]**
 
 ```powershell
-# backend: FastAPI suite (32 passed; sqlite; conftest forces
+# backend: FastAPI suite (35 passed; sqlite; conftest forces
 # SCAN_ALLOW_PRIVATE_TARGETS=1 for the in-process lab only)
 cd apps\api
 & C:\Projects\Sentinel\.venv\Scripts\python.exe -m pytest tests -q -p no:warnings
 
-# packages: 56 passed (scanner 19, shared 33, vulnerability-db 4)
+# packages: 60 passed (scanner 23 incl. TLS/AIA + hostname-mismatch classification, shared 33, vulnerability-db 4)
 cd C:\Projects\Sentinel
 & C:\Projects\Sentinel\.venv\Scripts\python.exe -m pytest packages\scanner\tests packages\shared\tests packages\vulnerability-db\tests -q -p no:warnings
 
@@ -222,14 +218,14 @@ Frontend (from `apps\web`):
 
 ```powershell
 npm run typecheck      # tsc --noEmit, clean
-npm run build          # next 16.4.3, 18 routes, clean
+npm run build          # next 16, 16 routes, clean
 npm audit              # 0 vulnerabilities (fixed by the next@16 bump)
 ```
 
 | Gate | Expected |
 |---|---|
-| API tests | 32 passed |
-| Package tests | 56 passed (88 total) |
+| API tests | 35 passed |
+| Package tests | 60 passed (95 total) |
 | ruff | All checks passed |
 | mypy (CI scope) | no issues in 20 source files |
 | bandit | 0 issues |
@@ -251,16 +247,16 @@ gates currently pass.
 | Symptom | Cause & fix |
 |---|---|
 | `Bind for 127.0.0.1:8000 failed: port is already allocated` | `sentinelscanner-api-1` (other project) owns the port. Set `API_HOST_PORT=8010`/`WEB_HOST_PORT=3005` in `.env`, or `docker stop sentinelscanner-api-1`. |
-| Register/login/**any** UI action shows `Request failed (500)` and `web` logs show `ECONNREFUSED 127.0.0.1:8000` | The web app proxies `/api/*` from its own container — `localhost` is wrong there. The compose file now passes `NEXT_PUBLIC_API_URL=http://api:8000` **at build time** (Turbopack bakes rewrites into `routes-manifest.json`, so setting it only at runtime is not enough). If you need a custom value, set `NEXT_PUBLIC_API_URL` in `.env` before `docker compose build web`. |
+| **Any** UI action shows `Request failed (500)` and `web` logs show `ECONNREFUSED 127.0.0.1:8000` | The web app proxies `/api/*` from its own container — `localhost` is wrong there. The compose file now passes `NEXT_PUBLIC_API_URL=http://api:8000` **at build time** (Turbopack bakes rewrites into `routes-manifest.json`, so setting it only at runtime is not enough). If you need a custom value, set `NEXT_PUBLIC_API_URL` in `.env` before `docker compose build web`. |
 | `docker compose` says daemon unreachable | Docker Desktop not running. `"C:\Program Files\Docker\Docker\Docker Desktop.exe"`; wait ~2 min, then `docker info`. |
 | Asset URL rejected during lab scan (`SUSPICIOUS_HOST` / `PRIVATE_TARGET`) | You are scanning `127.0.0.1`/`lab-vulnerable` with the guard active. Use the compose DNS name from the **stack**, and `SCAN_ALLOW_PRIVATE_TARGETS=1` for anything loopback; reset to `0` when done. |
 | `host.docker.internal` rejected | By design (`.internal` suffix rule) — from a stack-local scan target use the compose service DNS name (`http://lab-vulnerable:80`), the scanner and web run on that same Docker network. |
 | Scan row stuck QUEUED/SCANNING forever | It should self-heal: `fail_stuck_scans` (beat, 60 s) fails anything older than `STUCK_SCANS_STALE_SECONDS` (default 900 s ≫ 60 s scan budget). Errors are `SCAN_STUCK_QUEUED` / `SCAN_STUCK` and you get an in-app notification. Set `STUCK_SCANS_ENABLED=0` to disable. |
 | HTTP 500 on "queue scan" shortly after `up` | Worker still booting celery beat — wait, or restart `worker` service; check `docker compose logs worker`. |
-| Cookies logged out / 403 on every write | CSRF double-submit (cookie `sentinel_csrf` must match header `x-csrf-token`) — log out/login via UI clears it. Hard reload after restart does not fix stale cookies. |
+| Writes failing after a container reset (stale browser tab) | Not possible anymore — there are no cookies/sessions. If anything 500s, check `docker compose logs api` first; hard-reload the page. |
 | Mailpit inbox empty after test email | Wrong SMTP sink. Docker stack expects `SMTP_HOST=mailpit`, `SMTP_PORT=1025` (see `.env.example`); local-dev expects `SMTP_HOST=localhost`. Browse http://localhost:8025 and check `docker compose logs worker` for the SMTP error. |
 | Scan fails with `CERTIFICATE_VERIFY_FAILED — unable to get local issuer certificate` | The target serves an incomplete TLS chain (leaf only, no intermediates — common on misconfigured hosts). Sentinel never bypasses verification; instead the missing intermediate is appended to `infra/tls/ca-bundle.pem` (system roots + intermediates, certificate data only) which api+worker load via `SSL_CERT_FILE=/certs/ca-bundle.pem` (compose anchors `x-tls-bundle`/`x-tls-mount`). To trust a new chain: save the missing intermediate as PEM, append it to the bundle, then `docker compose restart api worker`. Verify in-container with `docker compose exec api python -c "import httpx; print(httpx.get('https://<host>', timeout=15).status_code)"`. |
-| Scan of `https://www.example.YOURDOMAIN/…` fails with hostname mismatch | Wildcard certs cover ONE label. `www.exams.domain` needs `*.exams.domain`, but the cert has `*.domain`. Use the bare host without the extra `www.` when the wildcard scope is the parent domain. |
+| Scan of `https://www.example.YOURDOMAIN/…` fails with hostname mismatch | Wildcard certs cover ONE label. `www.exams.domain` needs `*.exams.domain`, but the cert has `*.domain`. Use the bare host without the extra `www.` when the wildcard scope is the parent domain. (Verified live 2026-10-24 on keralauniversity; scan error code `TLS_CERT_HOSTNAME_MISMATCH`.) |
 | Deleting an asset throws "An internal error occurred." (500) | **Fixed** (was: `Finding.disclosures` lacked an ORM cascade → SQLAlchemy nulled the NOT NULL `disclosures.finding_id`). If you still see it, rebuild backend images: `docker compose up -d --build api worker`. |
 | Discover button did nothing (2 clicks, no feedback) | **Fixed** in the redesign: discover POSTs immediately with an per-second-ish poll (~12 s) until the async job finishes, and errors now surface with friendly wording (`onError` was missing before). |
 | A page shows "This page couldn't load" after a deploy | Firefox/dev tools console will show a hydration mismatch — React 19 treats any SSR/CSR difference as fatal. Sentinel avoids wall-clock output during SSR (client-only `<NowStamp />` component); don't reintroduce `new Date()`/`toLocale*` in server components. |
@@ -270,8 +266,9 @@ gates currently pass.
 
 ## 8. Honest status caveats (before you rely on it)
 
-1. **SESSION_SECRET** — any install must regenerate it (§2). The example
-   placeholder is deterministic.
+1. **Single-user, no login.** Auth/sessions/CSRF were removed deliberately so
+   anyone with loopback access (i.e. the local machine) is the owner. Do not
+   expose the services to other machines.
 2. **Real SMTP is unverified.** The disclosed-email path is fully proven
    against Mailpit only (behaviour identical API+worker-side; real relay
    needs your own credentials in `.env`, set `SMTP_TLS=1` for 587/
@@ -282,8 +279,9 @@ gates currently pass.
 5. `npm audit` on current Next 16 = 0 vulnerabilities; do not pin back to
    `next@15` (it reintroduces advisories).
 6. **TLS trust is strengthened, never bypassed.** api/worker load
-   `infra/tls/ca-bundle.pem` (public certs only) via `SSL_CERT_FILE`; a target
-   with a broken chain must be fixed by adding its missing intermediate to the
-   bundle — there is no code path that disables certificate verification.
-7. Full, source-of-truth status (44 sections + addenda):
-   `SENTINEL_PROJECT_REPORT.md`.
+   `infra/tls/ca-bundle.pem` (public certs only) via `SSL_CERT_FILE`; the
+   scanner auto-fetches missing intermediates via AIA (RFC 5280) and still
+   returns `TLS_CERT_CHAIN_INCOMPLETE` when the chain cannot be completed —
+   there is no code path that disables certificate verification.
+7. Current status, limitations, and quick reference: the README.md
+   sections (Security design / Known limitations / Testing).

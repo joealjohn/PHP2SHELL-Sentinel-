@@ -57,7 +57,7 @@ function ScansTable() {
       {formError ? <div className="mt-4"><ErrorBanner message={formError} /></div> : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-600">
+        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-3">
           <SlidersHorizontal className="h-3 w-3" aria-hidden /> Filters
         </span>
         <Select
@@ -94,7 +94,7 @@ function ScansTable() {
         ) : rows.length === 0 ? (
           <Empty icon={<Radar className="h-8 w-8" aria-hidden />}>
             No scans yet.{" "}
-            <Link href="/assets" className="text-blue-400 hover:underline">
+            <Link href="/assets" className="text-accent hover:underline">
               Start one from an asset
             </Link>
             .
@@ -102,7 +102,7 @@ function ScansTable() {
         ) : (
           <table className="w-full min-w-[720px]">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.07)]">
+              <tr className="border-b border-line">
                 <th className="th">Started</th>
                 <th className="th">Asset</th>
                 <th className="th">Status</th>
@@ -116,14 +116,14 @@ function ScansTable() {
                 return (
                   <tr
                     key={s.id}
-                    className="border-b border-[rgba(255,255,255,0.04)] transition-colors last:border-0 hover:bg-[rgba(255,255,255,0.015)]"
+                    className="border-b border-line transition-colors last:border-0 hover:bg-raised"
                   >
                     <td className="td">
-                      <span className="text-slate-300">{formatDateTime(s.created_at)}</span>
-                      <TimeAgo date={s.created_at} className="block text-[10px] text-slate-600" />
+                      <span className="text-ink-2">{formatDateTime(s.created_at)}</span>
+                      <TimeAgo date={s.created_at} className="block text-[10px] text-ink-3" />
                     </td>
                     <td className="td">
-                      <Link href={`/assets/${s.asset_id}`} className="hover:text-slate-200">
+                      <Link href={`/assets/${s.asset_id}`} className="hover:text-ink">
                         {s.asset_name ?? names.get(s.asset_id) ?? "unknown asset"}
                       </Link>
                     </td>
@@ -140,7 +140,7 @@ function ScansTable() {
                           Cancel
                         </Button>
                       ) : (
-                        <span className="text-slate-600">
+                        <span className="text-ink-3">
                           Summary: {s.summary ? String((s.summary as Record<string, unknown>).checks_passed ?? `${Object.keys(s.summary).length} fields`) : "—"}
                         </span>
                       )}
@@ -152,7 +152,7 @@ function ScansTable() {
           </table>
         )}
       </Card>
-      <p className="mt-3 text-[11px] text-slate-600">
+      <p className="mt-3 text-[11px] text-ink-3">
         {isLoading ? <Spinner label="Loading…" /> : `${rows.length} scan${rows.length === 1 ? "" : "s"} · stuck runs fail automatically after the sweeper threshold.`}
       </p>
     </div>

@@ -72,7 +72,7 @@ function FindingsTable() {
 
       {/* Filter bar (URL is the source of truth) */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-600">
+        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-3">
           <SlidersHorizontal className="h-3 w-3" aria-hidden /> Filters
         </span>
         <Select
@@ -139,7 +139,7 @@ function FindingsTable() {
         ) : (
           <table className="w-full min-w-[860px]">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.07)]">
+              <tr className="border-b border-line">
                 <th className="th">Severity</th>
                 <th className="th">Vulnerability</th>
                 <th className="th">Asset</th>
@@ -153,31 +153,31 @@ function FindingsTable() {
               {findings.map((f) => (
                 <tr
                   key={f.id}
-                  className="border-b border-[rgba(255,255,255,0.04)] transition-colors last:border-0 hover:bg-[rgba(255,255,255,0.015)]"
+                  className="border-b border-line transition-colors last:border-0 hover:bg-raised"
                 >
                   <td className="td"><SeverityBadge severity={f.severity} /></td>
                   <td className="td max-w-[340px]">
-                    <Link href={`/findings/${f.id}`} className="font-medium text-slate-200 hover:text-blue-300">
+                    <Link href={`/findings/${f.id}`} className="font-medium text-ink hover:text-accent">
                       {f.title}
                     </Link>
-                    <div className="truncate text-[11px] text-slate-600">{f.vulnerability_id}</div>
+                    <div className="truncate text-[11px] text-ink-3">{f.vulnerability_id}</div>
                   </td>
                   <td className="td">
-                    <Link href={`/assets/${f.asset_id}`} className="hover:text-slate-200">
+                    <Link href={`/assets/${f.asset_id}`} className="hover:text-ink">
                       {f.asset_name}
                     </Link>
                   </td>
                   <td className="td"><FindingStatusBadge status={f.status} /></td>
                   <td className="td text-right">{f.confidence}</td>
                   <td className="td text-right tabular-nums">{f.cvss ?? "—"}</td>
-                  <td className="td text-right text-slate-500">{formatDateTime(f.last_seen)}</td>
+                  <td className="td text-right text-ink-3">{formatDateTime(f.last_seen)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </Card>
-      <p className="mt-3 text-[11px] text-slate-600">
+      <p className="mt-3 text-[11px] text-ink-3">
         {isLoading ? <Spinner label="Loading…" /> : `${findings.length} finding${findings.length === 1 ? "" : "s"} shown · states reflect what the scanner could verify, not assumptions.`}
       </p>
     </div>

@@ -36,7 +36,8 @@ def display_name_for(email: str | None) -> str:
     local = email.split("@", 1)[0]
     parts = [p for p in re.split(r"[._\-+]+", local) if p and not p.isdigit()]
     if len(parts) == 1:
-        parts = [re.sub(r"\d+$", "", parts[0])] or [local]
+        stripped = re.sub(r"\d+$", "", parts[0])
+        parts = [stripped] if stripped else [local]
     words = [p[:1].upper() + p[1:] for p in parts if p]
     return " ".join(words) if words else "Sentinel Security Monitoring"
 
@@ -74,9 +75,9 @@ def build_disclosure_email(
         lines.append(f"- [{e.evidence_type}] {e.name}: {value}")
     lines += [
         "",
-        (f"These indicators suggest the host may be affected by this "
-         f"vulnerability, depending on whether the relevant security fixes "
-         f"have been backported by the operating-system or vendor package."),
+        ("These indicators suggest the host may be affected by this "
+         "vulnerability, depending on whether the relevant security fixes "
+         "have been backported by the operating-system or vendor package."),
         "",
         "Security Impact",
         "",
@@ -85,8 +86,8 @@ def build_disclosure_email(
         "Testing Performed",
         "",
         _NO_RCE_NOTE,
-        (f"The finding is based solely on non-invasive identification of "
-         f"exposed software/version information."),
+        ("The finding is based solely on non-invasive identification of "
+         "exposed software/version information."),
         "",
         "Recommended Remediation",
         "",
@@ -99,12 +100,12 @@ def build_disclosure_email(
         lines.append(f"- {r}")
     lines += [
         "",
-        (f"I am sharing this information in good faith so that the issue can "
-         f"be investigated and remediated before it can potentially be "
-         f"abused."),
+        ("I am sharing this information in good faith so that the issue can "
+         "be investigated and remediated before it can potentially be "
+         "abused."),
         "",
         ("Please let me know if you require additional non-invasive technical "
-         f"details regarding the observation."),
+         "details regarding the observation."),
         "",
         "Regards,",
         display_name_for(sender_email),

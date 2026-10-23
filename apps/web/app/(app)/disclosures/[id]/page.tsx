@@ -97,7 +97,7 @@ export default function DisclosureDetailPage() {
       <div className="max-w-2xl p-6">
         <Empty icon={<FileText className="h-8 w-8" aria-hidden />}>
           Disclosure not found (or not yours).{" "}
-          <Link href="/disclosures" className="text-blue-400 hover:underline">
+          <Link href="/disclosures" className="text-accent hover:underline">
             Back to disclosures
           </Link>
         </Empty>
@@ -114,7 +114,7 @@ export default function DisclosureDetailPage() {
     <div className="mx-auto max-w-[1100px] p-6">
       <Link
         href="/disclosures"
-        className="inline-flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
+        className="inline-flex items-center gap-1 text-xs text-ink-3 transition-colors hover:text-ink-2"
       >
         <ArrowLeft className="h-3 w-3" aria-hidden /> Back to disclosures
       </Link>
@@ -125,17 +125,17 @@ export default function DisclosureDetailPage() {
             <DisclosureStatusBadge status={d.status} />
             {d.delivery_status ? <Badge color="info">delivery: {d.delivery_status}</Badge> : null}
           </div>
-          <h1 className="mt-1.5 text-xl font-semibold tracking-[-0.01em] text-slate-100">
+          <h1 className="mt-1.5 text-xl font-semibold tracking-[-0.01em] text-ink">
             {d.subject}
           </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            <Link href={`/assets/${d.asset_id}`} className="hover:text-slate-200">
+          <p className="mt-1 text-sm text-ink-2">
+            <Link href={`/assets/${d.asset_id}`} className="hover:text-ink">
               {d.asset_name}
             </Link>
             {" → "}
             <span className="font-mono text-xs">{d.recipient_email}</span>
             {d.recipient_source ? (
-              <span className="text-slate-600">
+              <span className="text-ink-3">
                 {" "}· source: {d.recipient_source.replace("_", " ").toLowerCase()}
               </span>
             ) : null}
@@ -201,7 +201,7 @@ export default function DisclosureDetailPage() {
           />
         </div>
       ) : info ? (
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-[rgba(52,211,153,0.3)] bg-[var(--status-ok-dim)] px-3 py-2 text-sm text-[var(--status-ok)]">
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">
           <CheckCircle2 className="h-4 w-4" aria-hidden /> {info}
         </div>
       ) : null}
@@ -219,19 +219,19 @@ export default function DisclosureDetailPage() {
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold ${
                     done
-                      ? "border-[rgba(52,211,153,0.4)] bg-[var(--status-ok-dim)] text-[var(--status-ok)]"
+                      ? "border-ok/40 bg-ok/10 text-ok"
                       : active
-                        ? "border-blue-500/50 bg-blue-500/10 text-blue-300"
-                        : "border-[rgba(255,255,255,0.1)] text-slate-600"
+                        ? "border-accent/50 bg-accent/10 text-accent"
+                        : "border-line-strong text-ink-3"
                   }`}
                 >
                   {done ? <CheckCircle2 className="h-3 w-3" aria-hidden /> : i + 1}
                 </span>
                 <span className="min-w-0">
-                  <span className={`block text-xs font-medium ${done || active ? "text-slate-200" : "text-slate-600"}`}>
+                  <span className={`block text-xs font-medium ${done || active ? "text-ink" : "text-ink-3"}`}>
                     {disclosureStatusLabel[s.key]}
                   </span>
-                  <span className="block truncate text-[10px] text-slate-600">{s.hint}</span>
+                  <span className="block truncate text-[10px] text-ink-3">{s.hint}</span>
                 </span>
               </li>
             );
@@ -257,7 +257,7 @@ export default function DisclosureDetailPage() {
               >
                 {edit.isPending ? "Saving…" : "Save changes"}
               </Button>
-              <span className="text-[11px] text-slate-600">
+              <span className="text-[11px] text-ink-3">
                 <Cog className="mr-1 inline h-3 w-3" aria-hidden />
                 Protected words (the non-invasive statement) stay enforced by the
                 API — edits removing them are rejected.
@@ -270,12 +270,12 @@ export default function DisclosureDetailPage() {
       {/* Static preview for the email */}
       <Card className="mt-6">
         <SectionHeader title={editable ? "Effective content" : "Sent content"} />
-        <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[var(--bg-page)] p-4">
-          <div className="mb-3 border-b border-[rgba(255,255,255,0.07)] pb-2 text-xs">
-            <span className="text-slate-600">Subject:</span>{" "}
-            <span className="font-medium text-slate-200">{d.subject}</span>
+        <div className="rounded-lg border border-line bg-[var(--bg-page)] p-4">
+          <div className="mb-3 border-b border-line pb-2 text-xs">
+            <span className="text-ink-3">Subject:</span>{" "}
+            <span className="font-medium text-ink">{d.subject}</span>
           </div>
-          <pre className="whitespace-pre-wrap font-sans text-xs leading-5 text-slate-300">
+          <pre className="whitespace-pre-wrap font-sans text-xs leading-5 text-ink-2">
             {d.body}
           </pre>
         </div>
@@ -284,24 +284,24 @@ export default function DisclosureDetailPage() {
       {/* Meta timeline */}
       <Card className="mt-6 p-4">
         <div className="flex flex-wrap gap-x-8 gap-y-2 text-[11px]">
-          <span className="text-slate-600">
-            Created <TimeAgo date={d.created_at} className="text-slate-400" /> ({formatDateTime(d.created_at)})
+          <span className="text-ink-3">
+            Created <TimeAgo date={d.created_at} className="text-ink-2" /> ({formatDateTime(d.created_at)})
           </span>
           {d.approved_at ? (
-            <span className="text-slate-600">
-              Approved <TimeAgo date={d.approved_at} className="text-slate-400" />
+            <span className="text-ink-3">
+              Approved <TimeAgo date={d.approved_at} className="text-ink-2" />
             </span>
           ) : null}
           {d.last_sent_at ? (
-            <span className="text-slate-600">
-              Last sent <TimeAgo date={d.last_sent_at} className="text-slate-400" />
+            <span className="text-ink-3">
+              Last sent <TimeAgo date={d.last_sent_at} className="text-ink-2" />
             </span>
           ) : null}
-          <span className="flex items-center gap-1.5 text-slate-600">
+          <span className="flex items-center gap-1.5 text-ink-3">
             <ShieldCheck className="h-3 w-3" aria-hidden /> Token-gated delivery · auto-cancel after 72h · no exploit claims
           </span>
           {!editable && !d.error ? (
-            <span className="flex items-center gap-1.5 text-slate-600">
+            <span className="flex items-center gap-1.5 text-ink-3">
               <TriangleAlert className="h-3 w-3" aria-hidden />
               Duplicate sends are blocked by the backend with 409 DUPLICATE_DISCLOSURE
             </span>

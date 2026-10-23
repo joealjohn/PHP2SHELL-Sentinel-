@@ -25,6 +25,21 @@ async def lifespan(app: FastAPI):
         await app.state.redis.aclose()
 
 
+def _ensure_owner_user(settings) -> None:
+    """Seed the single owner account exactly once (idempotent)."""
+    from app.models import User
+
+    with SessionFactory() as db:
+        if db.query(User).count() == 0:
+            db.add(User(
+                email=settings.owner_email,
+                password_hash="!disabled",  # nosec B106 – not a credential, schema compat
+                is_active=True,
+                email_verified=True,
+            ))
+            db.commit()
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
 
@@ -34,16 +49,17 @@ def create_app() -> FastAPI:
                     "explain, disclose.",
         version="1.0.0",
         lifespan=lifespan,
-        docs_url="/docs",
+        docs_url="/docs" if settings.enable_docs else None,
         redoc_url=None,
+        openapi_url="/openapi.json" if settings.enable_docs else None,
     )
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["authorization", "content-type", "x-csrf-token"],
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+        allow_headers=["content-type"],
         max_age=600,
     )
 
@@ -56,6 +72,8 @@ def create_app() -> FastAPI:
         response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
         response.headers["Server"] = "sentinel"
         return response
+
+    _ensure_owner_user(settings)
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException):
@@ -109,7 +127,6 @@ def create_app() -> FastAPI:
     from app.api.routers import (
         assets,
         audit,
-        auth,
         contacts,
         disclosures,
         findings,
@@ -119,7 +136,6 @@ def create_app() -> FastAPI:
         scans,
     )
 
-    app.include_router(auth.router, prefix="/api")
     app.include_router(assets.router, prefix="/api")
     app.include_router(scans.router, prefix="/api")
     app.include_router(scans.router2, prefix="/api")

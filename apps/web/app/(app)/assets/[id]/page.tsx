@@ -116,7 +116,7 @@ export default function AssetDetailPage() {
       <div className="max-w-2xl p-6">
         <Empty icon={<Globe className="h-8 w-8" aria-hidden />}>
           Asset not found (or not yours).{" "}
-          <Link href="/assets" className="text-blue-400 hover:underline">
+          <Link href="/assets" className="text-accent hover:underline">
             Back to assets
           </Link>
         </Empty>
@@ -135,7 +135,7 @@ export default function AssetDetailPage() {
     <div className="mx-auto max-w-[1400px] p-6">
       <Link
         href="/assets"
-        className="inline-flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
+        className="inline-flex items-center gap-1 text-xs text-ink-3 transition-colors hover:text-ink-2"
       >
         <ArrowLeft className="h-3 w-3" aria-hidden /> Back to assets
       </Link>
@@ -143,7 +143,7 @@ export default function AssetDetailPage() {
         title={a.name}
         subtitle={
           <span>
-            <a href={a.url} className="text-slate-400 underline decoration-slate-700 hover:text-slate-200">
+            <a href={a.url} className="text-ink-2 underline decoration-line-strong hover:text-ink">
               {a.url}
             </a>
           </span>
@@ -168,7 +168,7 @@ export default function AssetDetailPage() {
         }
       />
 
-      {a.description ? <p className="mt-2 text-sm text-slate-400">{a.description}</p> : null}
+      {a.description ? <p className="mt-2 text-sm text-ink-2">{a.description}</p> : null}
 
       {actionError ? <div className="mt-4"><ErrorBanner message={actionError} /></div> : null}
 
@@ -196,12 +196,12 @@ export default function AssetDetailPage() {
         />
         <Card className="col-span-2 lg:col-span-1">
           <div className="flex items-start justify-between">
-            <span className="text-xs font-medium text-slate-400">Monitoring</span>
+            <span className="text-xs font-medium text-ink-2">Monitoring</span>
             <Badge color={a.monitoring_enabled ? "green" : "neutral"}>
               {a.monitoring_enabled ? "enabled" : "paused"}
             </Badge>
           </div>
-          <div className="mt-2 flex flex-col gap-1 text-[11px] text-slate-500">
+          <div className="mt-2 flex flex-col gap-1 text-[11px] text-ink-3">
             <span>Interval: {Math.round(a.scan_interval_seconds / 3600)}h</span>
             <span>
               Last: {a.last_scan_at ? <TimeAgo date={a.last_scan_at} /> : "never"}
@@ -224,16 +224,16 @@ export default function AssetDetailPage() {
             No scans yet — run the first one now.
           </Empty>
         ) : (
-          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+          <ul className="divide-y divide-line">
             {scans.data.scans.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-slate-300">{formatDateTime(s.created_at)}</span>
+                  <span className="text-ink-2">{formatDateTime(s.created_at)}</span>
                   {s.duration_seconds !== null && s.status === "COMPLETED"
-                    ? <span className="text-xs text-slate-600">{formatDuration(s.duration_seconds)}</span>
+                    ? <span className="text-xs text-ink-3">{formatDuration(s.duration_seconds)}</span>
                     : null}
                   {s.status === "FAILED" && s.error ? (
-                    <span className="text-xs text-red-400">{friendlyScanError(s.error)}</span>
+                    <span className="text-xs text-crit">{friendlyScanError(s.error)}</span>
                   ) : null}
                 </span>
                 <span className="flex items-center gap-2">
@@ -244,7 +244,7 @@ export default function AssetDetailPage() {
           </ul>
         )}
         {lastScan ? (
-          <p className="mt-2 text-[11px] text-slate-600">
+          <p className="mt-2 text-[11px] text-ink-3">
             Latest known state: {formatDateTime(lastScan.created_at)} — resumed
             monitoring picks the schedule automatically after authorization.
           </p>
@@ -258,9 +258,9 @@ export default function AssetDetailPage() {
           children={
             <span className="flex items-center gap-2">
               {discoverError ? (
-                <span className="text-xs text-red-400">{discoverError}</span>
+                <span className="text-xs text-crit">{discoverError}</span>
               ) : discovering ? (
-                <span className="flex items-center gap-1.5 text-xs text-blue-300">
+                <span className="flex items-center gap-1.5 text-xs text-accent">
                   <Spinner label="" />
                   discovering…
                 </span>
@@ -285,18 +285,18 @@ export default function AssetDetailPage() {
             discovery run without exploits.
           </Empty>
         ) : (
-          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+          <ul className="divide-y divide-line">
             {contacts.data.contacts.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-slate-200">
+                  <span className="text-ink">
                     {c.email ?? c.contact_url}
                   </span>
-                  <span className="text-xs text-slate-600">
+                  <span className="text-xs text-ink-3">
                     via {c.source.replace("_", " ").toLowerCase()}
                   </span>
                   {c.encryption_url || c.policy_url ? (
-                    <span className="text-xs text-slate-600">
+                    <span className="text-xs text-ink-3">
                       · policy/encryption published
                     </span>
                   ) : null}
@@ -305,7 +305,7 @@ export default function AssetDetailPage() {
                   <Badge color={c.confidence === "HIGH" ? "green" : "neutral"}>
                     {c.confidence} confidence
                   </Badge>
-                  <TimeAgo date={c.discovered_at} className="text-[11px] text-slate-600" />
+                  <TimeAgo date={c.discovered_at} className="text-[11px] text-ink-3" />
                 </span>
               </li>
             ))}

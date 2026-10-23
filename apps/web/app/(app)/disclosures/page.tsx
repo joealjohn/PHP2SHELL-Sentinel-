@@ -39,7 +39,7 @@ export default function DisclosuresPage() {
         ) : (
           <table className="w-full min-w-[760px]">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.07)]">
+              <tr className="border-b border-line">
                 <th className="th">Subject</th>
                 <th className="th">Asset</th>
                 <th className="th">Recipient</th>
@@ -51,24 +51,24 @@ export default function DisclosuresPage() {
               {rows.map((d) => (
                 <tr
                   key={d.id}
-                  className="border-b border-[rgba(255,255,255,0.04)] transition-colors last:border-0 hover:bg-[rgba(255,255,255,0.015)]"
+                  className="border-b border-line transition-colors last:border-0 hover:bg-raised"
                 >
                   <td className="td max-w-[260px]">
-                    <Link href={`/disclosures/${d.id}`} className="font-medium text-slate-200 hover:text-blue-300">
+                    <Link href={`/disclosures/${d.id}`} className="font-medium text-ink hover:text-accent">
                       <span className="line-clamp-1">{d.subject}</span>
                     </Link>
-                    <div className="truncate text-[11px] text-slate-600">{d.finding_title}</div>
+                    <div className="truncate text-[11px] text-ink-3">{d.finding_title}</div>
                   </td>
                   <td className="td">{d.asset_name}</td>
                   <td className="td">
                     {d.recipient_email ? (
                       <span className="font-mono text-xs">{d.recipient_email}</span>
                     ) : (
-                      <span className="text-slate-600">not selected</span>
+                      <span className="text-ink-3">not selected</span>
                     )}
                   </td>
                   <td className="td"><DisclosureStatusBadge status={d.status} /></td>
-                  <td className="td text-right text-slate-500">
+                  <td className="td text-right text-ink-3">
                     <TimeAgo date={d.last_sent_at ?? d.sent_at ?? d.created_at} />
                   </td>
                 </tr>
@@ -77,7 +77,7 @@ export default function DisclosuresPage() {
           </table>
         )}
       </Card>
-      <p className="mt-3 text-[11px] text-slate-600">
+      <p className="mt-3 text-[11px] text-ink-3">
         {isLoading ? <Spinner label="Loading…" /> : `${rows.length} disclosure${rows.length === 1 ? "" : "s"} · language is fixed to the non-invasive template ("No exploitation was performed").`}
       </p>
     </div>

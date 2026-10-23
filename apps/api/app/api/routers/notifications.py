@@ -9,8 +9,7 @@ from app.schemas.v1 import NotificationOut
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/notifications", tags=["notifications"],
-                   dependencies=[Depends(deps.require_csrf)])
+router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
 @router.get("")

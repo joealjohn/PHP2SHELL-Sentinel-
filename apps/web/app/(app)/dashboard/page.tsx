@@ -118,7 +118,7 @@ export default function DashboardPage() {
         <Card>
           <SectionHeader title="Security posture" />
           <RiskIndicator metrics={m} />
-          <div className="mt-5 border-t border-[rgba(255,255,255,0.07)] pt-4">
+          <div className="mt-5 border-t border-line pt-4">
             <SeverityOverview metrics={m} />
           </div>
         </Card>
@@ -140,7 +140,7 @@ export default function DashboardPage() {
             children={
               <Link
                 href="/findings"
-                className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                className="flex items-center gap-1 text-xs text-accent hover:text-accent"
               >
                 View all <ArrowUpRight className="h-3 w-3" aria-hidden />
               </Link>
@@ -151,19 +151,19 @@ export default function DashboardPage() {
               No findings yet. Add an asset and run your first scan.
             </Empty>
           ) : (
-            <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+            <ul className="divide-y divide-line">
               {m.recent_findings.map((f) => (
                 <li key={f.id}>
                   <Link
                     href={`/findings/${f.id}`}
-                    className="flex items-center justify-between gap-3 py-2.5 transition-colors hover:bg-[rgba(255,255,255,0.02)]"
+                    className="flex items-center justify-between gap-3 py-2.5 transition-colors hover:bg-raised"
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
                       <SeverityBadge severity={f.severity} />
-                      <span className="truncate text-sm text-slate-200">{f.title}</span>
+                      <span className="truncate text-sm text-ink">{f.title}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <span className="hidden text-xs text-slate-500 sm:inline" title={f.asset_url}>
+                      <span className="hidden text-xs text-ink-3 sm:inline" title={f.asset_url}>
                         {f.asset_name}
                       </span>
                       <FindingStatusBadge status={f.status} />
@@ -177,20 +177,25 @@ export default function DashboardPage() {
 
         <Card>
           <SectionHeader title="Recent activity" />
-          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+          {m.recent_scans.length === 0 &&
+          m.recent_disclosures.length === 0 &&
+          m.recent_assets.length === 0 ? (
+            <p className="py-6 text-center text-sm text-ink-3">No recent activity yet.</p>
+          ) : (
+          <ul className="divide-y divide-line">
             {m.recent_scans.slice(0, 3).map((s) => (
               <ActivityItem key={s.id} icon={CircleDot} when={s.created_at}>
                 Scan {scanStatusLabel[s.status] ?? s.status}
                 {s.asset_name ? (
                   <>
                     {" — "}
-                    <Link href={`/assets/${s.asset_id}`} className="text-slate-400 hover:text-slate-200">
+                    <Link href={`/assets/${s.asset_id}`} className="text-ink-2 hover:text-ink">
                       {s.asset_name}
                     </Link>
                   </>
                 ) : null}
                 {s.duration_seconds != null && s.status === "COMPLETED" ? (
-                  <span className="text-slate-500"> · {formatDuration(s.duration_seconds)}</span>
+                  <span className="text-ink-3"> · {formatDuration(s.duration_seconds)}</span>
                 ) : null}
               </ActivityItem>
             ))}
@@ -202,25 +207,26 @@ export default function DashboardPage() {
                 unread={d.status === "SENT" || d.status === "DELIVERED"}
               >
                 Disclosure{" "}
-                <Link href={`/disclosures/${d.id}`} className="hover:text-slate-100">
+                <Link href={`/disclosures/${d.id}`} className="hover:text-ink">
                   {d.finding_title}
                 </Link>{" "}
                 {d.status === "DELIVERED" ? "delivered to" : d.status === "SENT" ? "sent to" : "is " + (d.status === "PENDING_APPROVAL" ? "pending approval" : d.status.toLowerCase())}
                 {d.recipient_email ? (
-                  <span className="text-slate-500"> {d.recipient_email}</span>
+                  <span className="text-ink-3"> {d.recipient_email}</span>
                 ) : null}
               </ActivityItem>
             ))}
             {m.recent_assets.slice(0, 2).map((a) => (
               <ActivityItem key={a.id} icon={Globe} when={a.created_at}>
                 Asset{" "}
-                <Link href={`/assets/${a.id}`} className="hover:text-slate-100">
+                <Link href={`/assets/${a.id}`} className="hover:text-ink">
                   {a.name}
                 </Link>{" "}
                 added to monitoring
               </ActivityItem>
             ))}
           </ul>
+          )}
         </Card>
       </div>
 
@@ -231,7 +237,7 @@ export default function DashboardPage() {
           children={
             <Link
               href="/assets"
-              className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+              className="flex items-center gap-1 text-xs text-accent hover:text-accent"
             >
               Manage assets <ArrowUpRight className="h-3 w-3" aria-hidden />
             </Link>
@@ -240,7 +246,7 @@ export default function DashboardPage() {
         {m.recent_assets.length === 0 ? (
           <Empty icon={<Globe className="h-8 w-8" aria-hidden />}>
             No assets yet —{" "}
-            <Link href="/assets/new" className="text-blue-400 hover:underline">
+            <Link href="/assets/new" className="text-accent hover:underline">
               add your first target
             </Link>
             .
@@ -251,22 +257,22 @@ export default function DashboardPage() {
               <Link
                 key={a.id}
                 href={`/assets/${a.id}`}
-                className="card-flat flex items-center justify-between gap-3 p-3.5 transition-colors hover:bg-[#111c33]"
+                className="card flex items-center justify-between gap-3 p-3.5 transition-colors hover:bg-raised"
               >
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-slate-200">
+                  <span className="block truncate text-sm font-medium text-ink">
                     {a.name}
                   </span>
-                  <span className="block truncate text-xs text-slate-500">{a.host}</span>
+                  <span className="block truncate text-xs text-ink-3">{a.host}</span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
                   {a.last_scan_status ? (
                     <ScanStatusBadge status={a.last_scan_status} />
                   ) : (
-                    <span className="text-[11px] text-slate-500">never scanned</span>
+                    <span className="text-[11px] text-ink-3">never scanned</span>
                   )}
                   {a.last_scan_at ? (
-                    <TimeAgo date={a.last_scan_at} className="text-[10px] text-slate-600" />
+                    <TimeAgo date={a.last_scan_at} className="text-[10px] text-ink-3" />
                   ) : null}
                 </span>
               </Link>
@@ -275,11 +281,13 @@ export default function DashboardPage() {
         )}
       </Card>
 
-      <p className="mt-6 flex items-center gap-2 text-[11px] text-slate-600">
-        <Bell className="h-3 w-3" aria-hidden />
-        Non-invasive scanning only — HIGH_CONFIDENCE is the maximum state a remote
-        scanner can assign; exploitability is never claimed. Data shown is the live
-        API state as of <NowStamp />.
+      <p className="mt-6 flex items-start gap-2 text-[11px] leading-4 text-ink-3">
+        <Bell className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+        <span>
+          Non-invasive scanning only — HIGH_CONFIDENCE is the maximum state a remote
+          scanner can assign; exploitability is never claimed. Data shown is the live
+          API state as of <NowStamp />.
+        </span>
       </p>
       <span className="sr-only">
         <ShieldCheck /> Sentinel dashboard

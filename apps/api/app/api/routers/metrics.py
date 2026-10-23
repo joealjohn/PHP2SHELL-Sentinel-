@@ -58,6 +58,23 @@ def summary(db: Session = Depends(get_db), user=Depends(deps.get_current_user)):
         data = f.to_json()
         data["asset_name"] = asset.name if asset else None
         findings_with_asset.append(data)
+    recent_assets_out = []
+    for a in assets_list:
+        data = a.to_json()
+        data["open_findings"] = (
+            db.query(func.count(Finding.id))
+            .filter(Finding.asset_id == a.id,
+                    Finding.status.notin_(["RESOLVED"]),
+                    Finding.state.notin_(["NOT_DETECTED", "PATCHED"]))
+            .scalar()
+        )
+        last = (
+            db.query(Scan).filter(Scan.asset_id == a.id,
+                                  Scan.status.in_(["COMPLETED", "FAILED"]))
+            .order_by(Scan.created_at.desc()).first()
+        )
+        data["last_scan_status"] = last.status if last else None
+        recent_assets_out.append(data)
     return {
         "assets": assets_total,
         "open_findings": len(open_findings),
@@ -68,5 +85,5 @@ def summary(db: Session = Depends(get_db), user=Depends(deps.get_current_user)):
         "recent_scans": [s.to_json() for s in recent_scans],
         "recent_findings": findings_with_asset,
         "recent_disclosures": [d.to_json() for d in recent_disclosures],
-        "recent_assets": [a.to_json() for a in assets_list],
+        "recent_assets": recent_assets_out,
     }

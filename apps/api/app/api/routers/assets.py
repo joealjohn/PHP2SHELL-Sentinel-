@@ -20,8 +20,7 @@ from sentinel_shared.urlguard import TargetValidationError, assert_url_scannable
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/assets", tags=["assets"],
-                   dependencies=[Depends(deps.require_csrf)])
+router = APIRouter(prefix="/assets", tags=["assets"])
 
 
 def _maybe_resolve_asset_out(db: Session, asset: Asset) -> AssetOut:
@@ -140,8 +139,7 @@ def delete_asset(asset_id: str, db: Session = Depends(get_db),
 @router.post("/{asset_id}/scan", status_code=202)
 def start_scan(asset_id: str, request: Request, db: Session = Depends(get_db),
                user: User = Depends(deps.get_current_user)):
-    enforce(request, action="scan-start", max_requests=10, window_seconds=300,
-            user_scope=str(user.id))
+    enforce(request, action="scan-start", max_requests=10, window_seconds=300)
     asset = deps.get_user_asset_or_403(db, user, asset_id)
     deps.require_authorized_asset(asset)
     running = (

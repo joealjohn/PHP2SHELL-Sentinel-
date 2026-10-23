@@ -66,32 +66,14 @@ class User(Base):
 
     id = Column(GUID, primary_key=True, default=new_uuid)
     email = Column(String(320), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    # Kept for schema compatibility; the single-user deployment has no login
+    # and the seeded owner carries a deliberately invalid value ("!disabled").
+    password_hash = Column(String(255), nullable=False, default="!disabled")
     is_active = Column(Boolean, nullable=False, default=True)
     email_verified = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = Column(DateTime(timezone=True), nullable=False, default=utcnow,
                         onupdate=utcnow)
-
-    sessions = relationship("UserSession", back_populates="user",
-                            cascade="all, delete-orphan")
-
-
-class UserSession(Base):
-    __tablename__ = "sessions"
-
-    id = Column(GUID, primary_key=True, default=new_uuid)
-    user_id = Column(GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
-                     index=True)
-    token_hash = Column(String(64), unique=True, nullable=False, index=True)
-    csrf_token = Column(String(64), nullable=False)
-    ip_address = Column(String(64), nullable=True)
-    user_agent = Column(String(255), nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
-    revoked_at = Column(DateTime(timezone=True), nullable=True)
-
-    user = relationship("User", back_populates="sessions")
 
 
 class Asset(Base):

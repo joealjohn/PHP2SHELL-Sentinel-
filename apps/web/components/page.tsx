@@ -12,10 +12,10 @@ export function PageHeader({
   return (
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-xl font-semibold tracking-[-0.01em] text-slate-100">
+        <h1 className="text-xl font-semibold tracking-[-0.01em] text-ink">
           {title}
         </h1>
-        {subtitle ? <p className="mt-1 text-sm text-slate-400">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-1 text-sm text-ink-2">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </header>
@@ -31,7 +31,7 @@ export function SectionHeader({
 }) {
   return (
     <div className="mb-4 flex items-center justify-between">
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
         {title}
       </h2>
       {children}

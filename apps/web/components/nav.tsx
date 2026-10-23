@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Bell,
   CheckCircle2,
   FileText,
   Globe,
   LayoutDashboard,
-  LogOut,
   Menu,
   Radar,
   ScrollText,
@@ -20,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { ThemeToggle } from "./theme";
 
 type NavItem = {
   label: string;
@@ -66,7 +66,7 @@ const NAV: NavGroup[] = [
   },
 ];
 
-const RELEASE_NOTE = "Local-first · no data leaves this machine";
+const RELEASE_NOTE = "Local-first · private";
 
 function isActive(pathname: string, href: string): boolean {
   if (pathname === href) return true;
@@ -88,7 +88,7 @@ function NavList({
     <nav aria-label="Primary" className="flex flex-col gap-5 px-3 py-4">
       {NAV.map((group) => (
         <div key={group.heading}>
-          <div className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-slate-600">
+          <div className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-ink-3">
             {group.heading}
           </div>
           <ul className="flex flex-col gap-0.5">
@@ -104,23 +104,23 @@ function NavList({
                     aria-current={active ? "page" : undefined}
                     className={`flex items-center gap-2.5 rounded-lg px-2.5 py-[7px] text-[13px] font-medium transition-colors ${
                       active
-                        ? "bg-[#132038] text-slate-100"
-                        : "text-slate-400 hover:bg-[rgba(255,255,255,0.04)] hover:text-slate-200"
+                        ? "bg-accent-dim text-ink"
+                        : "text-ink-2 hover:bg-raised hover:text-ink"
                     }`}
                   >
                     <item.icon
-                      className={`h-4 w-4 shrink-0 ${active ? "text-blue-400" : ""}`}
+                      className={`h-4 w-4 shrink-0 ${active ? "text-accent" : "text-ink-3"}`}
                       strokeWidth={1.75}
                       aria-hidden
                     />
                     <span className="flex-1">{item.label}</span>
                     {count != null && count > 0 ? (
-                      <span className="rounded-full bg-[rgba(255,255,255,0.07)] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-300">
+                      <span className="rounded-full bg-raised px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ink-2">
                         {count > 99 ? "99+" : count}
                       </span>
                     ) : null}
                     {active ? (
-                      <span className="absolute left-0 h-5 w-[2px] rounded-r bg-blue-500" aria-hidden />
+                      <span className="absolute left-0 h-5 w-[2px] rounded-r bg-accent" aria-hidden />
                     ) : null}
                   </Link>
                 </li>
@@ -137,16 +137,12 @@ function SidebarBody({
   pathname,
   openFindings,
   unread,
-  onLogout,
   onNavigate,
-  email,
 }: {
   pathname: string;
   openFindings: number | null;
   unread: number | null;
-  onLogout: () => void;
   onNavigate?: () => void;
-  email: string;
 }) {
   const [healthy, setHealthy] = useState<boolean | null>(null);
 
@@ -169,12 +165,12 @@ function SidebarBody({
   return (
     <div className="flex h-full flex-col">
       <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-2.5 px-5 pb-4 pt-5">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600">
+        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent">
           <ShieldCheck className="h-4 w-4 text-white" aria-hidden />
         </span>
         <span>
-          <span className="block text-sm font-semibold leading-4 text-slate-100">Sentinel</span>
-          <span className="block text-[10px] leading-3 text-slate-500">{RELEASE_NOTE}</span>
+          <span className="block text-sm font-semibold leading-4 text-ink">Sentinel</span>
+          <span className="block text-[10px] leading-3 text-ink-3">{RELEASE_NOTE}</span>
         </span>
       </Link>
 
@@ -187,36 +183,22 @@ function SidebarBody({
         />
       </div>
 
-      <div className="mx-3 mb-2 rounded-lg border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.02)] px-3 py-2.5">
-        <div className="flex items-center gap-2 text-xs">
-          <CheckCircle2
-            className="h-3.5 w-3.5 text-[var(--status-ok)]"
-            strokeWidth={2}
-            aria-hidden
-          />
-          <span className="font-medium text-slate-300">Monitor active</span>
-          <span className="text-[var(--status-ok)]" style={{ fontSize: 10 }}>
-            ●
-          </span>
-        </div>
+      <div className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-line bg-raised px-3 py-2">
+        <CheckCircle2 className="h-3.5 w-3.5 text-ok" strokeWidth={2} aria-hidden />
+        <span className="text-xs font-medium text-ink-2">Monitor active</span>
+        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-ok" aria-hidden />
       </div>
 
-      <div className="mx-3 mb-2 rounded-lg px-3 py-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-xs text-slate-400" title={email}>
-            {email}
-          </span>
-          <button
-            type="button"
-            onClick={onLogout}
-            aria-label="Log out"
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-[rgba(255,255,255,0.05)] hover:text-red-300"
-          >
-            <LogOut className="h-3 w-3" aria-hidden /> Log out
-          </button>
-        </div>
+      <div className="mx-3 mb-1">
+        <ThemeToggle />
       </div>
-      <p className="pb-3 text-center text-[10px] text-slate-600">
+
+      <div className="mx-3 mb-2 px-2.5">
+        <span className="block min-w-0 truncate text-xs text-ink-3" title="Local single-user deployment">
+          Local single-user deployment
+        </span>
+      </div>
+      <p className="pb-3 text-center text-[10px] text-ink-3">
         Scanner v3.4.5 · DB schema up to date
       </p>
     </div>
@@ -225,20 +207,13 @@ function SidebarBody({
 
 /* ── Full sidebar used by the app layout ───────────────────── */
 export function AppSidebar({
-  email,
   openFindings,
   unread,
-  onLogout,
-  onSignOut,
 }: {
-  email: string;
   openFindings: number | null;
   unread: number | null;
-  onLogout: () => void;
-  onSignOut: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -251,13 +226,6 @@ export function AppSidebar({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const logout = () => {
-    setOpen(false);
-    onLogout();
-    router.push("/login");
-    router.refresh();
-  };
-
   return (
     <>
       {/* Desktop sidebar */}
@@ -266,24 +234,25 @@ export function AppSidebar({
           pathname={pathname}
           openFindings={openFindings}
           unread={unread}
-          email={email}
-          onLogout={logout}
         />
       </aside>
 
       {/* Mobile top bar */}
-      <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-[rgba(255,255,255,0.07)] bg-[var(--bg-panel)] px-4 lg:hidden">
-        <span className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-          <ShieldCheck className="h-4 w-4 text-blue-500" aria-hidden /> Sentinel
+      <div className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-line bg-panel px-4 lg:hidden">
+        <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <ShieldCheck className="h-4 w-4 text-accent" aria-hidden /> Sentinel
         </span>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 hover:bg-[rgba(255,255,255,0.06)]"
-        >
-          <span className="sr-only">Open navigation menu</span>
-          <Menu className="h-5 w-5" aria-hidden />
-        </button>
+        <div className="flex items-center gap-1">
+          <ThemeToggle compact />
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-2 hover:bg-raised"
+          >
+            <span className="sr-only">Open navigation menu</span>
+            <Menu className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
       </div>
 
       {/* Mobile drawer */}
@@ -302,14 +271,14 @@ export function AppSidebar({
             aria-hidden
           />
           <div
-            className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-[var(--bg-panel)] shadow-2xl transition-transform duration-200 ${
+            className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-line bg-panel shadow-2xl transition-transform duration-200 ${
               open ? "translate-x-0" : "-translate-x-full"
             }`}
           >
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-[rgba(255,255,255,0.06)]"
+              className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-lg text-ink-2 hover:bg-raised"
             >
               <span className="sr-only">Close navigation menu</span>
               <X className="h-5 w-5" aria-hidden />
@@ -321,6 +290,17 @@ export function AppSidebar({
                 unread={unread}
                 onNavigate={() => setOpen(false)}
               />
+            </div>
+            <div className="border-t border-line px-4 py-3">
+              <ThemeToggle />
+              <div className="mt-1">
+                <span
+                  className="block min-w-0 truncate text-xs text-ink-3"
+                  title="Local single-user deployment"
+                >
+                  Local single-user deployment
+                </span>
+              </div>
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ import { formatDateTime, timeAgo } from "../lib/format";
 /* ── Spinner ───────────────────────────────────────────────── */
 export function Spinner({ label = "Loading…" }: { label?: string }) {
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-slate-400">
+    <span className="inline-flex items-center gap-2 text-sm text-ink-3">
       <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
         <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -37,7 +37,7 @@ export function Card({
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+    <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
       {children}
     </h2>
   );
@@ -45,11 +45,16 @@ export function SectionTitle({ children }: { children: React.ReactNode }) {
 
 /* ── Buttons ───────────────────────────────────────────────── */
 const buttonStyles = {
-  primary: "bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-950/40",
-  secondary: "bg-[#182338] hover:bg-[#233152] text-slate-200 border border-[rgba(255,255,255,0.08)]",
-  danger: "bg-red-950/60 hover:bg-red-900/70 text-red-300 border border-red-800/50",
-  ghost: "bg-transparent hover:bg-[rgba(255,255,255,0.05)] text-slate-300 border border-transparent",
-  success: "bg-emerald-600/90 hover:bg-emerald-500 text-white",
+  primary:
+    "bg-accent text-[var(--accent-contrast)] hover:opacity-90 shadow-sm",
+  secondary:
+    "bg-panel text-ink border border-line-strong hover:bg-raised",
+  danger:
+    "bg-crit/10 text-crit border border-crit/25 hover:bg-crit/15",
+  ghost:
+    "bg-transparent text-ink-2 border border-transparent hover:bg-raised hover:text-ink",
+  success:
+    "bg-ok/10 text-ok border border-ok/25 hover:bg-ok/15",
 } as const;
 
 export function Button({
@@ -96,23 +101,23 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-400">{label}</span>
+      <span className="mb-1 block text-xs font-medium text-ink-2">{label}</span>
       {children}
-      {hint ? <span className="mt-1 block text-[11px] text-slate-500">{hint}</span> : null}
+      {hint ? <span className="mt-1 block text-[11px] text-ink-3">{hint}</span> : null}
     </label>
   );
 }
 
 /* ── Badges ────────────────────────────────────────────────── */
 const badgeColors = {
-  CRITICAL: "bg-[var(--sev-critical-dim)] text-[var(--sev-critical)] border-[rgba(248,113,113,0.35)]",
-  HIGH: "bg-[var(--sev-high-dim)] text-[var(--sev-high)] border-[rgba(251,146,60,0.35)]",
-  MEDIUM: "bg-[var(--sev-medium-dim)] text-[var(--sev-medium)] border-[rgba(251,191,36,0.3)]",
-  LOW: "bg-[var(--sev-low-dim)] text-[var(--sev-low)] border-[rgba(125,211,252,0.3)]",
-  neutral: "bg-[var(--status-info-dim)] text-slate-300 border-[rgba(148,163,184,0.25)]",
-  green: "bg-[var(--status-ok-dim)] text-[var(--status-ok)] border-[rgba(52,211,153,0.3)]",
-  info: "bg-blue-500/10 text-blue-300 border-blue-500/30",
-  amber: "bg-amber-500/10 text-amber-300 border-amber-500/30",
+  CRITICAL: "bg-crit/10 text-crit border-crit/25",
+  HIGH: "bg-high/10 text-high border-high/25",
+  MEDIUM: "bg-med/10 text-med border-med/25",
+  LOW: "bg-low/10 text-low border-low/25",
+  neutral: "bg-[var(--status-info-dim)] text-ink-2 border-line",
+  green: "bg-ok/10 text-ok border-ok/25",
+  info: "bg-accent-dim text-accent border-accent/25",
+  amber: "bg-med/10 text-med border-med/25",
 } as const;
 
 export function Badge({
@@ -147,8 +152,8 @@ export function Empty({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-[rgba(255,255,255,0.12)] p-10 text-center text-sm text-slate-500">
-      {icon ? <span className="text-slate-600">{icon}</span> : null}
+    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong p-10 text-center text-sm text-ink-3">
+      {icon ? <span className="text-ink-3">{icon}</span> : null}
       <div>{children}</div>
     </div>
   );
@@ -159,7 +164,7 @@ export function ErrorBanner({ message }: { message: string | null | undefined })
   return (
     <div
       role="alert"
-      className="rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-2 text-sm text-red-300"
+      className="rounded-lg border border-crit/25 bg-crit/10 px-3 py-2 text-sm text-crit"
     >
       {message}
     </div>

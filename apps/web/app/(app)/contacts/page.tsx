@@ -59,7 +59,7 @@ export default function ContactsPage() {
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <span className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" aria-hidden />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
           <input
             aria-label="Search contacts"
             className="input w-64 pl-8"
@@ -97,7 +97,7 @@ export default function ContactsPage() {
         ) : (
           <table className="w-full min-w-[720px]">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.07)]">
+              <tr className="border-b border-line">
                 <th className="th">Contact</th>
                 <th className="th">Asset</th>
                 <th className="th">Source</th>
@@ -109,18 +109,18 @@ export default function ContactsPage() {
               {filtered.map((r) => (
                 <tr
                   key={r.contact.id}
-                  className="border-b border-[rgba(255,255,255,0.04)] transition-colors last:border-0 hover:bg-[rgba(255,255,255,0.015)]"
+                  className="border-b border-line transition-colors last:border-0 hover:bg-raised"
                 >
                   <td className="td">
-                    <span className="font-mono text-xs text-slate-200">
+                    <span className="font-mono text-xs text-ink">
                       {r.contact.email ?? r.contact.contact_url}
                     </span>
                     {r.contact.encryption_url ? (
-                      <div className="text-[10px] text-slate-600">encryption key published</div>
+                      <div className="text-[10px] text-ink-3">encryption key published</div>
                     ) : null}
                   </td>
                   <td className="td">
-                    <Link href={`/assets/${r.asset.id}`} className="hover:text-slate-200">
+                    <Link href={`/assets/${r.asset.id}`} className="hover:text-ink">
                       {r.asset.name}
                     </Link>
                   </td>
@@ -130,14 +130,14 @@ export default function ContactsPage() {
                       {r.contact.confidence}
                     </Badge>
                   </td>
-                  <td className="td text-right text-slate-500">{formatDateTime(r.contact.discovered_at)}</td>
+                  <td className="td text-right text-ink-3">{formatDateTime(r.contact.discovered_at)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </Card>
-      <p className="mt-3 flex items-start gap-2 text-[11px] text-slate-600">
+      <p className="mt-3 flex items-start gap-2 text-[11px] text-ink-3">
         <UserRoundPlus className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
         Contacts come from /.well-known/security.txt, meta tags, and visible
         mailto links only — the S3 disclosure-safety rule requires the

@@ -103,20 +103,6 @@ class TestRemediation:
             f"/api/findings/{fid}/close").json()["status"] == "RESOLVED"
 
 
-class TestIDOR:
-    def test_other_user_cannot_reach_asset(self, api_user_b, asset_a):
-        assert api_user_b.get(f"/api/assets/{asset_a['id']}").status_code == 404
-
-    def test_other_user_cannot_scan(self, api_user_b, asset_a):
-        assert api_user_b.post(
-            f"/api/assets/{asset_a['id']}/scan").status_code == 404
-
-    def test_other_user_findings_reports_hidden(self, api_user_a, api_user_b, asset_a):
-        scan_id, f = run_scan(api_user_a, asset_a)
-        assert api_user_b.get(f"/api/findings/{f['id']}").status_code == 404
-        assert api_user_b.get(
-            f"/api/reports/findings/{f['id']}.json").status_code == 404
-
 
 class TestDisclosureFlow:
     def test_draft_blocked_without_contact(self, api_user_a, asset_a):

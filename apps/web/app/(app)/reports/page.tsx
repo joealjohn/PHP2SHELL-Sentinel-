@@ -16,6 +16,7 @@ import { formatDateTime } from "@/lib/format";
 function printAsPdf(url: string, title: string) {
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
+  frame.setAttribute("sandbox", "allow-same-origin allow-modals");
   frame.style.position = "fixed";
   frame.style.right = "0";
   frame.style.bottom = "0";
@@ -73,7 +74,7 @@ export default function ReportsPage() {
             Reports appear here once findings exist.
           </Empty>
         ) : (
-          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+          <ul className="divide-y divide-line">
             {rows.map((r) => (
               <li
                 key={r.finding_id}
@@ -84,11 +85,11 @@ export default function ReportsPage() {
                     <Badge color={severityColor(r.severity)}>
                       {r.severity === "CRITICAL" ? "Critical" : r.severity[0] + r.severity.slice(1).toLowerCase()}
                     </Badge>
-                    <Link href={`/findings/${r.finding_id}`} className="truncate text-sm font-medium text-slate-200 hover:text-blue-300">
+                    <Link href={`/findings/${r.finding_id}`} className="truncate text-sm font-medium text-ink hover:text-accent">
                       {r.title}
                     </Link>
                   </div>
-                  <div className="truncate text-xs text-slate-600">
+                  <div className="truncate text-xs text-ink-3">
                     {r.vulnerability_id} · {r.asset_name} · {r.status.startsWith("RESOLVED") ? "resolved" : "open"} · {r.confidence} confidence
                   </div>
                 </div>
@@ -96,15 +97,15 @@ export default function ReportsPage() {
                   {/* API returns /reports/... without /api prefix */}
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-1 font-medium text-white transition-colors hover:bg-blue-500"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 font-medium text-white transition-colors hover:opacity-90"
                     onClick={() => printAsPdf(`/api${r.html_url}`, `${r.vulnerability_id} — ${r.title}`)}
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden /> PDF
                   </button>
-                  <a className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] px-2.5 py-1 text-slate-300 transition-colors hover:bg-[rgba(255,255,255,0.05)]" href={`/api${r.html_url}`} download>
+                  <a className="inline-flex items-center gap-1.5 rounded-lg border border-line-strong px-2.5 py-1 text-ink-2 transition-colors hover:bg-raised" href={`/api${r.html_url}`} download>
                     <FileDown className="h-3.5 w-3.5" aria-hidden /> HTML
                   </a>
-                  <a className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(255,255,255,0.1)] px-2.5 py-1 text-slate-300 transition-colors hover:bg-[rgba(255,255,255,0.05)]" href={`/api${r.json_url}`}>
+                  <a className="inline-flex items-center gap-1.5 rounded-lg border border-line-strong px-2.5 py-1 text-ink-2 transition-colors hover:bg-raised" href={`/api${r.json_url}`}>
                     <FileJson2 className="h-3.5 w-3.5" aria-hidden /> JSON
                   </a>
                 </div>
@@ -113,7 +114,7 @@ export default function ReportsPage() {
           </ul>
         )}
       </Card>
-      <p className="mt-3 text-[11px] text-slate-600">
+      <p className="mt-3 text-[11px] text-ink-3">
         {isLoading ? <Spinner label="Loading…" /> : `${rows.length} report${rows.length === 1 ? "" : "s"} · generated ${formatDateTime(new Date().toISOString())}`}
       </p>
     </div>

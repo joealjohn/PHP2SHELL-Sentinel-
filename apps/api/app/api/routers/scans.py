@@ -7,8 +7,7 @@ from app.models import Asset, Finding, Scan, User, utcnow
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/scans", tags=["scans"],
-                   dependencies=[Depends(deps.require_csrf)])
+router = APIRouter(prefix="/scans", tags=["scans"])
 
 
 @router.get("")
@@ -56,8 +55,7 @@ def _own_scan_or_404(db: Session, user: User, scan_id: str) -> Scan:
 @router.post("/{scan_id}/cancel")
 def cancel_scan(scan_id: str, request: Request, db: Session = Depends(get_db),
                 user: User = Depends(deps.get_current_user)):
-    enforce(request, action="scan-cancel", max_requests=20, window_seconds=300,
-            user_scope=str(user.id))
+    enforce(request, action="scan-cancel", max_requests=20, window_seconds=300)
     scan = _own_scan_or_404(db, user, scan_id)
     if scan.status in ("COMPLETED", "FAILED"):
         raise HTTPException(status_code=409, detail={
@@ -69,8 +67,7 @@ def cancel_scan(scan_id: str, request: Request, db: Session = Depends(get_db),
     return scan.to_json()
 
 
-router2 = APIRouter(tags=["findings"],
-                    dependencies=[Depends(deps.require_csrf)])
+router2 = APIRouter(tags=["findings"])
 
 
 @router2.get("/scan/{scan_id}/findings")

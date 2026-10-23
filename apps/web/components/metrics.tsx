@@ -22,17 +22,17 @@ export function DashboardMetric({
   href?: string;
   ariaLabel?: string;
 }) {
-  const accentText = {
-    blue: "text-blue-400",
-    amber: "text-amber-400",
-    red: "text-red-400",
-    green: "text-emerald-400",
+  const accentChip = {
+    blue: "bg-accent-dim text-accent",
+    amber: "bg-med/10 text-med",
+    red: "bg-crit/10 text-crit",
+    green: "bg-ok/10 text-ok",
   }[accent];
   const Icon = icon;
   const Wrapper = ({ children }: { children: ReactNode }) => {
     if (href) {
       return (
-        <a href={href} className="card block transition-colors hover:bg-[#111c33]" aria-label={ariaLabel}>
+        <a href={href} className="card card-hover block" aria-label={ariaLabel}>
           {children}
         </a>
       );
@@ -42,12 +42,16 @@ export function DashboardMetric({
   return (
     <Wrapper>
       <div className="flex items-start justify-between p-4 pb-0">
-        <span className="text-xs font-medium text-slate-400">{label}</span>
-        <Icon className={`h-4 w-4 ${accentText}`} strokeWidth={1.75} aria-hidden />
+        <span className="text-xs font-medium text-ink-3">{label}</span>
+        <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${accentChip}`}>
+          <Icon className="h-3.5 w-3.5" strokeWidth={1.9} aria-hidden />
+        </span>
       </div>
-      <div className="flex items-baseline justify-between p-4 pt-1">
-        <span className="text-2xl font-semibold text-slate-100">{value}</span>
-        {delta ? <span className="text-[11px] text-slate-500">{delta}</span> : null}
+      <div className="p-4 pt-2">
+        <div className="text-2xl font-semibold leading-8 tracking-[-0.02em] tabular-nums text-ink">
+          {value}
+        </div>
+        {delta ? <div className="mt-1 text-[11px] text-ink-3">{delta}</div> : null}
       </div>
     </Wrapper>
   );
@@ -80,16 +84,16 @@ export function RiskIndicator({ metrics }: { metrics: Metrics }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-200">
+        <span className="text-sm font-medium text-ink">
           {score}
-          <span className="text-slate-500"> /100</span>
+          <span className="text-ink-3"> /100</span>
         </span>
         <span className="text-xs" style={{ color: band.color }}>
           {band.label}
         </span>
       </div>
       <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-raised"
         role="meter"
         aria-valuenow={score}
         aria-valuemin={0}
@@ -101,7 +105,7 @@ export function RiskIndicator({ metrics }: { metrics: Metrics }) {
           style={{ width: `${Math.max(score, 1)}%`, background: band.color }}
         />
       </div>
-      <p className="text-[11px] leading-4 text-slate-500">
+      <p className="text-[11px] leading-4 text-ink-3">
         Derived from open findings, weighted Critical ×20 / High ×10 / Medium ×5 / Low ×2
       </p>
     </div>
@@ -123,8 +127,8 @@ export function SeverityOverview({ metrics }: { metrics: Metrics }) {
             className="group grid grid-cols-[72px_1fr_28px] items-center gap-3"
             title={`${count} open ${severityLabel[sev]} finding${count === 1 ? "" : "s"} — view`}
           >
-            <span className="text-xs font-medium text-slate-300">{severityLabel[sev]}</span>
-            <span className="h-2.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.05)]">
+            <span className="text-xs font-medium text-ink-2">{severityLabel[sev]}</span>
+            <span className="h-2.5 overflow-hidden rounded-full bg-raised">
               <span
                 className="block h-full rounded-full transition-all"
                 style={{
@@ -133,14 +137,14 @@ export function SeverityOverview({ metrics }: { metrics: Metrics }) {
                 }}
               />
             </span>
-            <span className="text-right text-xs font-semibold tabular-nums text-slate-200">
+            <span className="text-right text-xs font-semibold tabular-nums text-ink">
               {count}
             </span>
           </a>
         );
       })}
       {total === 0 ? (
-        <p className="text-xs text-slate-500">No open findings right now.</p>
+        <p className="text-xs text-ink-3">No open findings right now.</p>
       ) : null}
     </div>
   );
@@ -172,15 +176,15 @@ export function ActivityItem({
       <span
         className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
           unread
-            ? "border-[rgba(52,211,153,0.35)] bg-[var(--status-ok-dim)] text-[var(--status-ok)]"
-            : "border-[rgba(255,255,255,0.08)] bg-[var(--bg-raised)] text-slate-500"
+            ? "border-ok/30 bg-ok/10 text-ok"
+            : "border-line bg-raised text-ink-3"
         }`}
       >
         <Icon className="h-3 w-3" strokeWidth={1.75} aria-hidden />
       </span>
-      <div className="min-w-0 flex-1 text-sm text-slate-300">{children}</div>
+      <div className="min-w-0 flex-1 text-sm text-ink-2">{children}</div>
       {when ? (
-        <TimeAgo date={when} className="shrink-0 text-[11px] text-slate-500" />
+        <TimeAgo date={when} className="shrink-0 text-[11px] text-ink-3" />
       ) : null}
     </li>
   );

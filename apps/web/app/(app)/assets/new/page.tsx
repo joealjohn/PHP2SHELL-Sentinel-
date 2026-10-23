@@ -40,12 +40,12 @@ export default function NewAssetPage() {
       <div className="mx-auto max-w-2xl p-6">
         <Card className="animate-fade-in">
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-6 w-6 text-[var(--status-ok)]" aria-hidden />
+            <CheckCircle2 className="mt-0.5 h-6 w-6 text-ok" aria-hidden />
             <div>
-              <h1 className="text-lg font-semibold text-slate-100">
+              <h1 className="text-lg font-semibold text-ink">
                 “{created.name}” is now monitored
               </h1>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-ink-2">
                 The asset was registered. Scans run automatically on its schedule —
                 or trigger the first scan right now.
               </p>
@@ -66,7 +66,7 @@ export default function NewAssetPage() {
               <Button variant="ghost">Back to assets</Button>
             </Link>
           </div>
-          <p className="mt-4 text-[11px] text-slate-500">
+          <p className="mt-4 text-[11px] text-ink-3">
             Reminder: discovery never attempts any invasive test. Scans only
             fingerprint software versions and read public metadata.
           </p>
@@ -114,13 +114,13 @@ export default function NewAssetPage() {
               placeholder="What is this host, who owns it, how is it maintained?"
             />
           </Field>
-          <label className="flex items-start gap-2 text-xs text-slate-400">
+          <label className="flex items-start gap-2 text-xs text-ink-2">
             <input
               type="checkbox"
               required
               checked={authConfirmed}
               onChange={(e) => setAuthConfirmed(e.target.checked)}
-              className="mt-0.5 size-4 shrink-0 rounded border-[rgba(255,255,255,0.25)] bg-[var(--bg-page)] accent-blue-500"
+              className="mt-0.5 size-4 shrink-0 rounded border-line-strong bg-[var(--bg-page)] accent-[var(--accent)]"
             />
             <span className="leading-4">
               I confirm I own this host or have written authorization to
@@ -139,7 +139,7 @@ export default function NewAssetPage() {
           </div>
         </form>
       </Card>
-      <p className="mt-3 flex items-start gap-2 text-[11px] text-slate-600">
+      <p className="mt-3 flex items-start gap-2 text-[11px] text-ink-3">
         <TriangleAlert className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
         Only add hosts you own or have written authorization to test. SSRF
         guards block private, loopback, and metadata targets unless

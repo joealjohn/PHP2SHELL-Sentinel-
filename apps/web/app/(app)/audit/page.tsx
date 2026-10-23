@@ -48,7 +48,7 @@ export default function AuditPage() {
         ) : (
           <table className="w-full min-w-[640px]">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.07)]">
+              <tr className="border-b border-line">
                 <th className="th">When</th>
                 <th className="th">Action</th>
                 <th className="th">Resource</th>
@@ -59,17 +59,17 @@ export default function AuditPage() {
               {rows.map((l) => (
                 <tr
                   key={l.id}
-                  className="border-b border-[rgba(255,255,255,0.04)] align-top transition-colors last:border-0 hover:bg-[rgba(255,255,255,0.015)]"
+                  className="border-b border-line align-top transition-colors last:border-0 hover:bg-raised"
                 >
-                  <td className="td whitespace-nowrap text-slate-500">{formatDateTime(l.created_at)}</td>
+                  <td className="td whitespace-nowrap text-ink-3">{formatDateTime(l.created_at)}</td>
                   <td className="td">
                     <Badge color={actionColor[l.action] ?? "neutral"}>{l.action}</Badge>
                   </td>
                   <td className="td font-mono text-[11px]">
                     {l.resource_type}
-                    {l.asset_id ? <span className="block text-slate-600">asset {l.asset_id.slice(0, 8)}…</span> : null}
+                    {l.asset_id ? <span className="block text-ink-3">asset {l.asset_id.slice(0, 8)}…</span> : null}
                   </td>
-                  <td className="td font-mono text-[11px] text-slate-600">
+                  <td className="td font-mono text-[11px] text-ink-3">
                     {l.detail
                       ? Object.entries(l.detail)
                           .slice(0, 3)

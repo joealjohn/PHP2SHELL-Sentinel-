@@ -44,8 +44,8 @@ services:
   mailpit:
     image: axllent/mailpit:v1.20
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
     restart: unless-stopped
 
   api:
@@ -59,7 +59,7 @@ services:
       REDIS_URL: redis://redis:6379/0
     volumes: *tls-mount
     ports:
-      - "${API_HOST_PORT:-8000}:8000"
+      - "127.0.0.1:${API_HOST_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -103,7 +103,7 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8000}
       NODE_ENV: production
     ports:
-      - "${WEB_HOST_PORT:-3000}:3000"
+      - "127.0.0.1:${WEB_HOST_PORT:-3000}:3000"
     depends_on:
       - api
     restart: unless-stopped
@@ -114,32 +114,32 @@ services:
   lab-vulnerable:
     profiles: ["lab"]
     build: tests/labs/php2shell/vulnerable
-    ports: ["8081:80"]
+    ports: ["127.0.0.1:8081:80"]
 
   lab-patched:
     profiles: ["lab"]
     build: tests/labs/php2shell/patched
-    ports: ["8082:80"]
+    ports: ["127.0.0.1:8082:80"]
 
   lab-hidden-version:
     profiles: ["lab"]
     build: tests/labs/php2shell/hidden-version
-    ports: ["8083:80"]
+    ports: ["127.0.0.1:8083:80"]
 
   lab-phpinfo-enabled:
     profiles: ["lab"]
     build: tests/labs/php2shell/phpinfo-enabled
-    ports: ["8084:80"]
+    ports: ["127.0.0.1:8084:80"]
 
   lab-phpinfo-disabled:
     profiles: ["lab"]
     build: tests/labs/php2shell/phpinfo-disabled
-    ports: ["8085:80"]
+    ports: ["127.0.0.1:8085:80"]
 
   lab-vendor-backport:
     profiles: ["lab"]
     build: tests/labs/php2shell/vendor-backport
-    ports: ["8086:80"]
+    ports: ["127.0.0.1:8086:80"]
 
 volumes:
   db_data:

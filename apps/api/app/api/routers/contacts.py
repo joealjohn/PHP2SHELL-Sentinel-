@@ -7,8 +7,7 @@ from app.schemas.v1 import ContactOut
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/assets", tags=["contacts"],
-                   dependencies=[Depends(deps.require_csrf)])
+router = APIRouter(prefix="/assets", tags=["contacts"])
 
 
 @router.get("/{asset_id}/contacts")

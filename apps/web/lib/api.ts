@@ -8,10 +8,7 @@ import type {
   Notification,
   ReportEntry,
   Scan,
-  User,
 } from "./types";
-
-const CSRF_COOKIE = "sentinel_csrf";
 
 export class ApiError extends Error {
   code: string;
@@ -23,29 +20,16 @@ export class ApiError extends Error {
   }
 }
 
-function csrfToken(): string | null {
-  const match = document.cookie
-    .split("; ")
-    .find((c) => c.startsWith(`${CSRF_COOKIE}=`));
-  return match ? decodeURIComponent(match.split("=")[1]) : null;
-}
-
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
 ): Promise<T> {
   const headers = new Headers({ Accept: "application/json" });
-  const mutating = !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase());
   if (body !== undefined) headers.set("Content-Type", "application/json");
-  if (mutating) {
-    const token = csrfToken();
-    if (token) headers.set("x-csrf-token", token);
-  }
   const res = await fetch(path, {
     method,
     headers,
-    credentials: "same-origin",
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
@@ -71,21 +55,8 @@ async function request<T>(
 }
 
 export const api = {
-  /* health (public, no auth) */
+  /* health (public) */
   requestPublic: <T,>(method: "GET", path: string) => request<T>(method, path),
-
-  /* auth */
-  register: (email: string, password: string) =>
-    request<User>("POST", "/api/auth/register", { email, password }),
-  login: (email: string, password: string) =>
-    request<User>("POST", "/api/auth/login", { email, password }),
-  me: () => request<User>("GET", "/api/auth/me"),
-  logout: () => request<{ ok: boolean }>("POST", "/api/auth/logout"),
-  changePassword: (current_password: string, new_password: string) =>
-    request<{ ok: boolean }>("POST", "/api/auth/change-password", {
-      current_password,
-      new_password,
-    }),
 
   /* metrics */
   metrics: () => request<Metrics>("GET", "/api/metrics/summary"),

@@ -2,55 +2,32 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import Depends, HTTPException, Request
-from fastapi.security import HTTPBearer
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.db import get_db
-from app.core.security import CSRF_COOKIE, SESSION_COOKIE, session_from_token
-from app.models import Asset, User, UserSession
-
-_bearer = HTTPBearer(auto_error=False)
+from app.models import Asset, User
 
 
-def get_session(request: Request, db: Session = Depends(get_db)) -> tuple[User, UserSession]:
-    raw = request.cookies.get(SESSION_COOKIE)
-    header = request.headers.get("authorization")
-    if header and header.lower().startswith("bearer "):
-        raw = header.split(" ", 1)[1].strip()
-    session = session_from_token(db, raw or "")
-    if session is None:
-        raise HTTPException(
-            status_code=401,
-            detail={"code": "UNAUTHENTICATED", "message": "Authentication required."},
+def get_current_user(db: Session = Depends(get_db)) -> User:
+    """Single-user deployment: every request operates on the local owner.
+
+    The owner row is seeded at application startup; this fallback covers
+    fresh databases and tests. ``password_hash`` is kept only for schema
+    compatibility and is intentionally not a valid credential.
+    """
+    user = db.query(User).order_by(User.created_at).first()
+    if user is None:
+        user = User(
+            email=get_settings().owner_email,
+            password_hash="!disabled",  # nosec B106 – not a credential, schema compat
+            is_active=True,
+            email_verified=True,
         )
-    user = db.get(User, session.user_id)
-    if user is None or not user.is_active:
-        raise HTTPException(status_code=401,
-                            detail={"code": "UNAUTHENTICATED",
-                                    "message": "User is inactive."})
-    return user, session
-
-
-def get_current_user(pair=Depends(get_session)) -> User:
-    return pair[0]
-
-
-def require_csrf(request: Request, pair=Depends(get_session)) -> None:
-    """Double-submit CSRF check for cookie-authenticated mutating requests."""
-    if request.method in ("GET", "HEAD", "OPTIONS"):
-        return
-    auth_header = request.headers.get("authorization", "")
-    cookie_auth = pair[1] is not None and not auth_header
-    if not cookie_auth:
-        return
-    cookie_token = request.cookies.get(CSRF_COOKIE)
-    header_token = request.headers.get("x-csrf-token")
-    if not cookie_token or not header_token or cookie_token != header_token:
-        raise HTTPException(
-            status_code=403,
-            detail={"code": "CSRF_INVALID", "message": "CSRF validation failed."},
-        )
+        db.add(user)
+        db.commit()
+    return user
 
 
 def get_user_asset_or_403(db: Session, user: User, asset_id: str) -> Asset:

@@ -75,7 +75,7 @@ export default function NotificationsPage() {
 
       {/* Unread */}
       <Card className="mt-6">
-        <h2 className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        <h2 className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-2">
           <Bell className="h-3.5 w-3.5" aria-hidden /> Unread {unread.length > 0 ? `· ${unread.length}` : ""}
         </h2>
         {unread.length === 0 ? (
@@ -83,25 +83,25 @@ export default function NotificationsPage() {
             All caught up — no unread notifications.
           </Empty>
         ) : (
-          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+          <ul className="divide-y divide-line">
             {unread.map((n) => {
               const Icon = ICONS[n.type] ?? Bell;
               return (
                 <li key={n.id} className="flex flex-wrap items-start justify-between gap-2 py-3">
                   <div className="flex min-w-0 gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[rgba(52,211,153,0.35)] bg-[var(--status-ok-dim)] text-[var(--status-ok)]">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-ok/30 bg-ok/10 text-ok">
                       <Icon className="h-3 w-3" aria-hidden />
                     </span>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge color="info">{notificationTypeLabel[n.type] ?? n.type}</Badge>
-                        <span className="text-sm text-slate-200">{n.title}</span>
+                        <span className="text-sm text-ink">{n.title}</span>
                       </div>
-                      <div className="mt-0.5 text-xs leading-5 text-slate-400">{n.message}</div>
+                      <div className="mt-0.5 text-xs leading-5 text-ink-2">{n.message}</div>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <TimeAgo date={n.created_at} className="text-[11px] text-slate-500" />
+                    <TimeAgo date={n.created_at} className="text-[11px] text-ink-3" />
                     <Button size="sm" variant="ghost" onClick={() => read.mutate(n.id)}>
                       Mark read
                     </Button>
@@ -115,7 +115,7 @@ export default function NotificationsPage() {
 
       {/* History */}
       <Card className="mt-4">
-        <h2 className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        <h2 className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-2">
           <Inbox className="h-3.5 w-3.5" aria-hidden /> All notifications
         </h2>
         {rows.length === 0 ? (
@@ -124,25 +124,25 @@ export default function NotificationsPage() {
             move through their workflow.
           </Empty>
         ) : allRead.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-600">
+          <p className="py-6 text-center text-sm text-ink-3">
             Nothing read yet — history builds as you mark items read.
           </p>
         ) : (
-          <ul className="divide-y divide-[rgba(255,255,255,0.06)]">
+          <ul className="divide-y divide-line">
             {allRead.slice(0, 50).map((n) => {
               const Icon = ICONS[n.type] ?? Bell;
               return (
                 <li key={n.id} className="flex flex-wrap items-start justify-between gap-2 py-3">
                   <div className="flex min-w-0 gap-3 opacity-80">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[rgba(255,255,255,0.08)] bg-[var(--bg-raised)] text-slate-500">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line bg-raised text-ink-3">
                       <Icon className="h-3 w-3" aria-hidden />
                     </span>
                     <div className="min-w-0">
-                      <div className="text-sm text-slate-300">{n.title}</div>
-                      <div className="mt-0.5 text-xs leading-5 text-slate-500">{n.message}</div>
+                      <div className="text-sm text-ink-2">{n.title}</div>
+                      <div className="mt-0.5 text-xs leading-5 text-ink-3">{n.message}</div>
                     </div>
                   </div>
-                  <TimeAgo date={n.created_at} className="shrink-0 text-[11px] text-slate-600" />
+                  <TimeAgo date={n.created_at} className="shrink-0 text-[11px] text-ink-3" />
                 </li>
               );
             })}

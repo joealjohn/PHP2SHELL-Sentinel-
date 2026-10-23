@@ -22,8 +22,7 @@ from app.services.reports import (
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/disclosures", tags=["disclosures"],
-                   dependencies=[Depends(deps.require_csrf)])
+router = APIRouter(prefix="/disclosures", tags=["disclosures"])
 
 
 def _own_disclosure(db: Session, user: User, disclosure_id: str) -> Disclosure:
@@ -48,8 +47,7 @@ def _find_evidence(db: Session, finding_id) -> list:
 @router.get("")
 def list_disclosures(request: Request, db: Session = Depends(get_db),
                      user: User = Depends(deps.get_current_user)):
-    enforce(request, action="disclosure-read", max_requests=120, window_seconds=60,
-            user_scope=str(user.id))
+    enforce(request, action="disclosure-read", max_requests=120, window_seconds=60)
     items = (
         db.query(Disclosure).filter(Disclosure.user_id == user.id)
         .order_by(Disclosure.created_at.desc()).limit(200).all()
@@ -77,16 +75,14 @@ def get_disclosure(disclosure_id: str, db: Session = Depends(get_db),
     return data
 
 
-draft_router = APIRouter(tags=["disclosures"],
-                         dependencies=[Depends(deps.require_csrf)])
+draft_router = APIRouter(tags=["disclosures"])
 
 
 @draft_router.post("/findings/{finding_id}/disclosure", status_code=201)
 def create_disclosure(finding_id: str, request: Request,
                       db: Session = Depends(get_db),
                       user: User = Depends(deps.get_current_user)):
-    enforce(request, action="disclosure-create", max_requests=20, window_seconds=600,
-            user_scope=str(user.id))
+    enforce(request, action="disclosure-create", max_requests=20, window_seconds=600)
     import uuid as uuid_lib
     try:
         fid = uuid_lib.UUID(finding_id)
@@ -178,8 +174,7 @@ def mark_pending(disclosure_id: str, db: Session = Depends(get_db),
 def send_test_email(disclosure_id: str, request: Request,
                     db: Session = Depends(get_db),
                     user: User = Depends(deps.get_current_user)):
-    enforce(request, action="test-email", max_requests=5, window_seconds=600,
-            user_scope=str(user.id))
+    enforce(request, action="test-email", max_requests=5, window_seconds=600)
     d = _own_disclosure(db, user, disclosure_id)
     # test mail is bound to the *authenticated user's* own email — never the target
     import datetime as _dt
@@ -198,8 +193,7 @@ def send_test_email(disclosure_id: str, request: Request,
 def approve_and_send(disclosure_id: str, request: Request,
                      db: Session = Depends(get_db),
                      user: User = Depends(deps.get_current_user)):
-    enforce(request, action="disclosure-send", max_requests=10, window_seconds=600,
-            user_scope=str(user.id))
+    enforce(request, action="disclosure-send", max_requests=10, window_seconds=600)
     d = _own_disclosure(db, user, disclosure_id)
     if d.status not in ("PENDING_APPROVAL", "DRAFT"):
         raise HTTPException(status_code=409, detail={
@@ -230,8 +224,7 @@ def approve_and_send(disclosure_id: str, request: Request,
 def send_now(disclosure_id: str, request: Request, db: Session = Depends(get_db),
              user: User = Depends(deps.get_current_user)):
     """Explicit resend requested by the user (duplicate protection opt-in)."""
-    enforce(request, action="disclosure-send", max_requests=10, window_seconds=600,
-            user_scope=str(user.id))
+    enforce(request, action="disclosure-send", max_requests=10, window_seconds=600)
     d = _own_disclosure(db, user, disclosure_id)
     d.status = "APPROVED"
     d.error = None

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 def dt(v: datetime | None) -> Any:
@@ -13,50 +13,6 @@ def dt(v: datetime | None) -> Any:
     if getattr(v, "tzinfo", None) is not None:
         return v.isoformat()
     return v.isoformat() + "Z"
-
-
-class IUser(BaseModel):
-    id: UUID
-    email: EmailStr
-    is_active: bool
-    email_verified: bool
-    created_at: datetime
-
-    def to_json(self) -> dict:
-        return {
-            "id": str(self.id),
-            "email": self.email,
-            "is_active": self.is_active,
-            "email_verified": self.email_verified,
-            "created_at": dt(self.created_at),
-        }
-
-    class Config:
-        from_attributes = True
-
-
-# ── Auth ────────────────────────────────────────────────────────────────────
-class RegisterIn(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=12, max_length=200)
-
-    @field_validator("password")
-    @classmethod
-    def strength(cls, v: str) -> str:
-        if not any(c.isupper() for c in v) or not any(c.islower() for c in v) \
-                or not any(c.isdigit() for c in v):
-            raise ValueError("Password must mix upper, lower and digit characters.")
-        return v
-
-
-class LoginIn(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class PasswordChange(BaseModel):
-    current_password: str
-    new_password: str = Field(min_length=12, max_length=200)
 
 
 # ── Assets ──────────────────────────────────────────────────────────────────
