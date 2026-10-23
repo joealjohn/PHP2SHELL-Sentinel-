@@ -73,6 +73,8 @@ docker compose ps                        # every service "healthy" or "running"
 curl http://127.0.0.1:8010/health        # 200, {"status":"ok"}
 curl http://127.0.0.1:8010/ready         # 200 — DB+Redis migrations checked
 curl -o NUL -s -w "%{http_code}" http://localhost:3005   # 200 (web UI)
+# /api proxy test through the web server itself (401 = proxy works, no session):
+curl -o NUL -s -w "%{http_code}" http://localhost:3005/api/auth/me
 ```
 
 - Mailpit UI (fake mailbox): **http://localhost:8025** — inbox for all
@@ -249,6 +251,7 @@ gates currently pass.
 | Symptom | Cause & fix |
 |---|---|
 | `Bind for 127.0.0.1:8000 failed: port is already allocated` | `sentinelscanner-api-1` (other project) owns the port. Set `API_HOST_PORT=8010`/`WEB_HOST_PORT=3005` in `.env`, or `docker stop sentinelscanner-api-1`. |
+| Register/login/**any** UI action shows `Request failed (500)` and `web` logs show `ECONNREFUSED 127.0.0.1:8000` | The web app proxies `/api/*` from its own container — `localhost` is wrong there. The compose file now passes `NEXT_PUBLIC_API_URL=http://api:8000` **at build time** (Turbopack bakes rewrites into `routes-manifest.json`, so setting it only at runtime is not enough). If you need a custom value, set `NEXT_PUBLIC_API_URL` in `.env` before `docker compose build web`. |
 | `docker compose` says daemon unreachable | Docker Desktop not running. `"C:\Program Files\Docker\Docker\Docker Desktop.exe"`; wait ~2 min, then `docker info`. |
 | Asset URL rejected during lab scan (`SUSPICIOUS_HOST` / `PRIVATE_TARGET`) | You are scanning `127.0.0.1`/`lab-vulnerable` with the guard active. Use the compose DNS name from the **stack**, and `SCAN_ALLOW_PRIVATE_TARGETS=1` for anything loopback; reset to `0` when done. |
 | `host.docker.internal` rejected | By design (`.internal` suffix rule) — from a stack-local scan target use the compose service DNS name (`http://lab-vulnerable:80`), the scanner and web run on that same Docker network. |

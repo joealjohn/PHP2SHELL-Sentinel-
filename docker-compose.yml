@@ -78,8 +78,14 @@ services:
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
+      args:
+        # Rewrites are baked at build time by Turbopack; pass it through.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8000}
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      # Browser /api/* traffic is proxied by the web SERVER process, which
+      # runs inside this container — "localhost" is the wrong target there.
+      # Point it at the compose service name (container-to-container).
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8000}
       NODE_ENV: production
     ports:
       - "${WEB_HOST_PORT:-3000}:3000"
