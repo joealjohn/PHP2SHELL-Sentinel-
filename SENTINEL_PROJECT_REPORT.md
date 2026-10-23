@@ -1548,6 +1548,14 @@ where they conflict.
    (`alembic_gen.db`, `tsconfig.tsbuildinfo`, test DBs) were caught before
    the final amend and added to `.gitignore`. Until CI runs on GitHub, CI
    itself remains unverified.
+6. **CI first live run — blocked by account billing, not by the code.** Both
+   runs (run #1 on `2df26d3`, run #2 on `c7d3083`) concluded `failure` within
+   2–4 s with **zero steps executed**; the check-run annotation reads
+   *"The job was not started because your account is locked due to a billing
+   issue."* No workflow change can fix this — resolve the billing banner at
+   GitHub → Settings → Billing, then re-run: every local gate identical to
+   CI (ruff, mypy, package tests, API tests, web build) currently passes
+   here, so the workflow is expected green the moment the account unlocks.
 
 ## Real SMTP
 
