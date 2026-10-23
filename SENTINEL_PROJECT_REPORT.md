@@ -1590,6 +1590,101 @@ certificates) are unchanged.
 
 ---
 
+# 42b. SECOND-SESSION ADDENDUM (2026-10-23, frontend redesign + TLS trust work)
+
+Second follow-up session on the same day. Sections above remain untouched;
+where this addendum conflicts, it supersedes. Commits: `7fb7cb1` (frontend),
+`c966792` (backend/TLS fixes pushed to `main`).
+
+## Real-world target: TLS trust (honest but complete)
+
+First real-world deployment milestone: a scan of an authorized university
+target (`exams.keralauniversity.ac.in`) **completed end-to-end** (COMPLETED,
+16:32:50, real finding produced). Getting there surfaced two issues, both fixed
+without ever weakening verification:
+
+1. **Incomplete certificate chain.** The target serves only its leaf
+   certificate (`*.keralauniversity.ac.in`, Sectigo OV) with **no
+   intermediates**. Python's verification fails with
+   `CERTIFICATE_VERIFY_FAILED — unable to get local issuer certificate`.
+   Control test proved the worker truststore is fine (example.com/google OK),
+   so the fix was to *add the missing intermediate*, not bypass TLS:
+   `http://crt.sectigo.com/SectigoPublicServerAuthenticationCAOVR36.crt`
+   (DER→PEM) concatenated into a new bundle
+   `infra/tls/ca-bundle.pem` (system roots + 1 intermediate; certificate data
+   only — no keys, `.gitignore` exception added). Both `api` and `worker`
+   containers set `SSL_CERT_FILE=/certs/ca-bundle.pem` via compose anchors
+    (`x-tls-bundle` / `x-tls-mount`). Nothing disables verification —
+    `CERTIFICATE_VERIFY_FAILED` is still a hard failure.
+2. **Hostname mismatch was user input error.** The site was initially saved as
+   `https://www.exams.keralauniversity.ac.in/...`; the wildcard covers one
+   label, `www.exams.` is two. Asset URL was corrected in the DB to
+   `https://exams.keralauniversity.ac.in/Login/stud_session.php` (the
+   www-host is, honestly, still misconfigured server-side — not a Sentinel
+   issue).
+
+## Backend fixes
+
+3. **Asset deletion crashed with 500** — `Finding.disclosures` had no ORM
+   cascade, so deleting a finding (via asset delete) made SQLAlchemy emit
+   `UPDATE disclosures SET finding_id=NULL` against a NOT NULL column
+   (NotNullViolation). Fixed with
+   `cascade="all, delete-orphan"` matching the DB-level `ON DELETE CASCADE`
+   (models.py). 7 asset/disclosure tests re-run green locally.
+4. **Disclosure email template rewritten** to the real professional structure
+   (Dear Security Team → Vulnerability/Severity/Confidence/Affected Host →
+   Observed Evidence (+CVE links) → Security Impact → Testing Performed with
+   the full *"No exploitation was performed. No remote code execution payload
+   was executed…"* sentence → Recommended Remediation → references → good-faith
+   closing → `Regards,` + sender name). `build_disclosure_email(...,
+   sender_email=...)` derives the sign-off from the account email
+   (`display_name_for`: `joeal.john@…` → "Joeal John"; `joealjohn290@…` →
+   "Joealjohn"). Drafts remain editable; safety gates unchanged
+   (test-email-first, `409 DUPLICATE_DISCLOSURE`). Subject duplication fixed
+   (titles ending in "detected" no longer read "…detected detected…").
+5. **Known display gap (worked around, open):** `Asset.to_json().last_scan_status`
+   is always `None` (serializer never fills it). Frontend now derives each
+   asset's latest scan badge client-side from `GET /api/scans?limit=200`.
+   The serializer itself is still to be fixed.
+
+## Frontend redesign (biggest change of the session)
+
+6. **Full dashboard redesign — shipped.** Same design language as real SaaS
+   security dashboards, frontend-only, no new data sources, real data only.
+   Design tokens in `globals.css` (`#0B1120` family, white-alpha borders/icons,
+   Inter); `lucide-react` is the **only** new dependency. New shared systems:
+   `components/ui.tsx` (Button variants/Sizes, Input/Select/Textarea/Field,
+   Badge + severityColor, Empty, ErrorBanner, hydration-safe `TimeAgo`,
+   client-only `NowStamp`, Skeleton), `badges.tsx`, `page.tsx`,
+   `chart.tsx` (activity chart from real scans), `metrics.tsx` (posture score,
+   risk indicator, severity overview), `nav.tsx` (grouped sidebar
+   Overview/Monitoring/Security/Disclosure/System, live unread/open-findings
+   badge counts, mobile drawer, health check).
+7. **New pages:** `/contacts` (client-side aggregation), `/vulnerabilities`
+   (grouped by `vulnerability_id`), `/scans` (filters + cancel), `/audit`,
+   `/assets/new` (mandatory consent checkbox + success panel). Every existing
+   page rewritten: findings list has URL-param filters (severity/status/
+   confidence/asset_id); asset detail shows discover progress **live**
+   (the §O-1 defect: silent swallow + no polling — now `onError` +
+   ~12 s polling until the 202 job completes, with friendly error text).
+8. **Fatal hydration-mismatch incident (fixed).** React 19 + Next 16 render
+   **any** SSR/CSR difference as a fatal "This page couldn't load". Two pages
+   called `formatDateTime(new Date().toISOString())` during SSR (asset-list +
+   dashboard footers). Replaced with client-only `<NowStamp />`. Lesson
+   recorded: never render wall-clock/`toLocale*` output during SSR.
+9. **PDF export on Reports** (was P3 #17 — now done, P3 list below):
+   `printAsPdf()` loads the same-origin HTML report in a hidden iframe and
+   calls `window.print()` (browser Save-as-PDF), next to the existing
+   HTML/JSON download links.
+10. **Web build: 18 routes** (`next build` clean, typecheck clean); container
+    `web` rebuilt and smoke-tested 200 via the in-container node script.
+
+## Depends on (still open, unchanged)
+
+- P1 #6–10 and the P2 list from §42a remain open. P3 #17 (PDF export)
+  is now **done**. The GitHub Actions billing lock is still user-side.
+- Real SMTP still deferred (user: "mail thing last").
+
 # 43. · FINAL STATUS
 
 ```text

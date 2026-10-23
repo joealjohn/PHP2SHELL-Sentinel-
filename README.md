@@ -50,8 +50,8 @@ responsible-disclosure email for **your** approval, and tracks the finding to
 | **Contact discovery** | `/.well-known/security.txt`, `/security.txt`, HTML meta/link scanning — no probing beyond what a visibility scanner does |
 | **Disclosure engine** | Draft → edit → test email → mark pending → approve → send (Mailpit/SMTP), duplicate protection, cancellation |
 | **Remediation verification** | "Verify fix" re-scan marks a finding `PATCHED` only when fresh evidence proves the new version ≥ fixed release |
-| **Reports** | JSON + HTML vulnerability reports with non-exploitation statements |
-| **Dashboards** | 14-day trends, severity breakdown, recent activity, audit trail, notifications |
+| **Reports** | JSON + HTML vulnerability reports with non-exploitation statements, plus browser PDF export |
+| **Dashboards** | Grouped sidebar (Overview/Monitoring/Security/Disclosure/System) with live unread/open-finding badges, 14-day trends from real scans, posture score, severity overview, audit trail |
 | **Test lab** | Six nginx-based local PHP2Shell scenarios (see [lab section](#4-the-six-lab-scenarios)) |
 
 ---
@@ -75,8 +75,9 @@ responsible-disclosure email for **your** approval, and tracks the finding to
                           └──────────┘  └──────────────┘  └──────────┘  └──────────┘
 ```
 
-- **apps/web** — Next.js 15 (App Router) + Tailwind v4 + TanStack Query. Talks to
-  the API via a next.config rewrite proxy so cookies stay same-origin.
+- **apps/web** — Next.js 16 (App Router) + Tailwind v4 + TanStack Query +
+  lucide-react icons. Dark SaaS security-dashboard UI; talks to the API via a
+  next.config rewrite proxy so cookies stay same-origin.
 - **apps/api** — FastAPI + SQLAlchemy 2.0 + Alembic + Celery + Argon2id sessions.
 - **packages/shared** (`sentinel_shared`) — SSRF URL-guard, versioning,
   header redaction (used by BOTH API and scanner).
@@ -107,9 +108,9 @@ Sentinel/
 │  │  └── tests/                   25-test integration suite (sqlite, lab stub)
 │  └── web/                        Next.js 15 frontend (hand-written, no create-next-app)
 │     ├── app/                     (root page, login, (app)/ protected pages)
-│     ├── components/ui.tsx        Button/Card/Badge/Input/Spinner primitives
+│     ├── components/              ui.tsx primitives + badges/page/chart/metrics/nav systems
 │     ├── hooks/use-session.ts     session/login/register/logout hooks
-│     └── lib/                     api.ts typed fetch client + types.ts shared models
+│     └── lib/                     api.ts typed fetch client, types.ts models, format.ts formatters
 ├── packages/
 │  ├── shared/                     sentinel_shared: urlguard SSRF, versioning, redaction
 │  ├── vulnerability-db/           sentinel_vulndb: data/php2shell.json + loader
@@ -234,6 +235,12 @@ Guarantees:
 - test emails never go to the vendor — they go to your own account address;
 - recipients come **only** from contacts previously discovered on the asset;
 - SMTP uses the bundled Mailpit receiver by default;
+- the draft follows a professional structure (vulnerability/severity/host →
+  observed evidence → security impact → **Testing Performed**, stating
+  explicitly that no exploitation was performed and no RCE payload was
+  executed → recommended remediation → references → good-faith closing →
+  `Regards,` + sender name derived from your account email); the body stays
+  editable before sending;
 - subject/body are redaction-checked; sweeping "we will publish in X days"
   templates are avoided — the template keeps an amicable professional tone.
 
@@ -421,15 +428,19 @@ All errors are consistent:
 |---|---|---|
 | Login/Signup | `/login` | dual-mode auth, strict password rules surfaced |
 | Redirect | `/` | auto routes to dashboard or login |
-| **Dashboard** | `/dashboard` | assets/open-findings/resolved counters, CRITICAL spotlight, 14-day scan+finding sparkbars, recent findings/scans |
-| Assets | `/assets` | create asset (SSRF-guarded), scan now / delete, statuses |
-| Asset detail | `/assets/[id]` | scans timeline, contact discovery, authorization badge, monitoring summary |
-| Findings | `/findings` | filterable list (severity), PATCHED states |
-| Finding detail | `/findings/[id]` | disclosure/evidence, "Prepare disclosure", "Verify fix", "Close finding" actions |
+| **Dashboard** | `/dashboard` | assets/open-findings/resolved counters, CRITICAL spotlight, 14-day scan+finding activity chart, recent findings/scans, posture score |
+| Assets | `/assets` | create (SSRF-guarded `/assets/new`), scan now / delete, live last-scan badges |
+| Asset detail | `/assets/[id]` | scans timeline, contact discovery with live progress polling, authorization badge, monitoring summary |
+| Findings | `/findings` | URL-param filters (severity/status/confidence/asset), PATCHED states |
+| Finding detail | `/findings/[id]` | evidence cards, version strip, "Prepare disclosure", "Verify fix", "Close finding" actions |
+| Vulnerabilities | `/vulnerabilities` | all targets grouped by `vulnerability_id` |
 | Disclosures | `/disclosures` | all drafts — status lifecycle legend |
-| Disclosure detail | `/disclosures/[id]` | edit / test email / mark-pending / approve / send-again / cancel, full body preview |
-| Reports | `/reports` | JSON + HTML report links, per-finding |
+| Disclosure detail | `/disclosures/[id]` | edit / test email / mark-pending / approve / send-again / cancel, workflow rail, full body preview |
+| Contacts | `/contacts` | all discovered contacts with confidence + related asset |
+| Scans | `/scans` | filterable scan history, cancel, friendly scan errors |
+| Reports | `/reports` | JSON + HTML downloads, **PDF export** (browser print pipeline) |
 | Notifications | `/notifications` | unread badges + mark-read |
+| Audit | `/audit` | security-relevant action trail |
 | Settings | `/settings` | change password (revokes all sessions) |
 
 The API calls are typed (`lib/api.ts` + `lib/types.ts`) via a fetch wrapper that
@@ -450,6 +461,7 @@ attaches CSRF headers and unpacks error envelopes into friendly messages.
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
 | `SMTP_HOST/PORT/USERNAME/PASSWORD/TLS`, `SMTP_FROM` | Mailpit defaults | Outbound email |
 | `SCANNER_USER_AGENT` | `SentinelSecurityScanner/1.0.0` | Identifies Sentinel requests |
+| `SSL_CERT_FILE` (compose) | `/certs/ca-bundle.pem` | api+worker CA bundle mount (`infra/tls/ca-bundle.pem`, public certs only) — add intermediates there for incomplete-chain targets; verification is never disabled |
 | `SCAN_TIMEOUT` / `SCAN_CONNECT_TIMEOUT` / `SCAN_READ_TIMEOUT` | 60/10/30 | Transport budgets (s) |
 | `SCAN_MAX_REDIRECTS` | `8` | HTTP redirect cap |
 | `SCAN_MAX_RESPONSE_SIZE` | `2097152` | Per-response byte cap (2 MiB) |

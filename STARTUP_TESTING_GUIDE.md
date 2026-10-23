@@ -222,7 +222,7 @@ Frontend (from `apps\web`):
 
 ```powershell
 npm run typecheck      # tsc --noEmit, clean
-npm run build          # next 16.4.3, 13 routes, clean
+npm run build          # next 16.4.3, 18 routes, clean
 npm audit              # 0 vulnerabilities (fixed by the next@16 bump)
 ```
 
@@ -235,7 +235,7 @@ npm audit              # 0 vulnerabilities (fixed by the next@16 bump)
 | bandit | 0 issues |
 | pip-audit | no known vulnerabilities |
 | npm audit | 0 vulnerabilities |
-| web build | 13 routes generated |
+| web build | 18 routes generated |
 
 CI note: the GitHub Actions workflow in `.github/workflows/ci.yml` runs the
 same gates, but the first real runs on GitHub failed before executing any
@@ -259,7 +259,12 @@ gates currently pass.
 | HTTP 500 on "queue scan" shortly after `up` | Worker still booting celery beat — wait, or restart `worker` service; check `docker compose logs worker`. |
 | Cookies logged out / 403 on every write | CSRF double-submit (cookie `sentinel_csrf` must match header `x-csrf-token`) — log out/login via UI clears it. Hard reload after restart does not fix stale cookies. |
 | Mailpit inbox empty after test email | Wrong SMTP sink. Docker stack expects `SMTP_HOST=mailpit`, `SMTP_PORT=1025` (see `.env.example`); local-dev expects `SMTP_HOST=localhost`. Browse http://localhost:8025 and check `docker compose logs worker` for the SMTP error. |
-| Duplicate assets (same URL re-added) | Known gap (no unique tuple), not harmful; the duplicate guard blocks an identical disclosure instead. |
+| Scan fails with `CERTIFICATE_VERIFY_FAILED — unable to get local issuer certificate` | The target serves an incomplete TLS chain (leaf only, no intermediates — common on misconfigured hosts). Sentinel never bypasses verification; instead the missing intermediate is appended to `infra/tls/ca-bundle.pem` (system roots + intermediates, certificate data only) which api+worker load via `SSL_CERT_FILE=/certs/ca-bundle.pem` (compose anchors `x-tls-bundle`/`x-tls-mount`). To trust a new chain: save the missing intermediate as PEM, append it to the bundle, then `docker compose restart api worker`. Verify in-container with `docker compose exec api python -c "import httpx; print(httpx.get('https://<host>', timeout=15).status_code)"`. |
+| Scan of `https://www.example.YOURDOMAIN/…` fails with hostname mismatch | Wildcard certs cover ONE label. `www.exams.domain` needs `*.exams.domain`, but the cert has `*.domain`. Use the bare host without the extra `www.` when the wildcard scope is the parent domain. |
+| Deleting an asset throws "An internal error occurred." (500) | **Fixed** (was: `Finding.disclosures` lacked an ORM cascade → SQLAlchemy nulled the NOT NULL `disclosures.finding_id`). If you still see it, rebuild backend images: `docker compose up -d --build api worker`. |
+| Discover button did nothing (2 clicks, no feedback) | **Fixed** in the redesign: discover POSTs immediately with an per-second-ish poll (~12 s) until the async job finishes, and errors now surface with friendly wording (`onError` was missing before). |
+| A page shows "This page couldn't load" after a deploy | Firefox/dev tools console will show a hydration mismatch — React 19 treats any SSR/CSR difference as fatal. Sentinel avoids wall-clock output during SSR (client-only `<NowStamp />` component); don't reintroduce `new Date()`/`toLocale*` in server components. |
+| Duplicate assets (same URL re-added) | Known gap (no unique tuple), not harmful; the duplicate guard blocks an identical disclosure instead. Delete the extras on the Assets page. |
 
 ---
 
@@ -276,5 +281,9 @@ gates currently pass.
 4. Frontend has **zero automated tests** (typecheck/build only).
 5. `npm audit` on current Next 16 = 0 vulnerabilities; do not pin back to
    `next@15` (it reintroduces advisories).
-6. Full, source-of-truth status (44 sections + addendum):
+6. **TLS trust is strengthened, never bypassed.** api/worker load
+   `infra/tls/ca-bundle.pem` (public certs only) via `SSL_CERT_FILE`; a target
+   with a broken chain must be fixed by adding its missing intermediate to the
+   bundle — there is no code path that disables certificate verification.
+7. Full, source-of-truth status (44 sections + addenda):
    `SENTINEL_PROJECT_REPORT.md`.
