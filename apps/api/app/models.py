@@ -176,7 +176,8 @@ class Finding(Base):
     asset = relationship("Asset", back_populates="findings")
     evidence_items = relationship("Evidence", back_populates="finding",
                                   cascade="all, delete-orphan")
-    disclosures = relationship("Disclosure", back_populates="finding")
+    disclosures = relationship("Disclosure", back_populates="finding",
+                               cascade="all, delete-orphan")
 
 
 class Evidence(Base):

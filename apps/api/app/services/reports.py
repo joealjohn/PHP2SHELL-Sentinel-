@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 from uuid import UUID as UUIDT
@@ -11,64 +12,104 @@ from app.core.config import get_settings
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
-_NO_RCE_NOTE = "No remote code execution payload was executed during this assessment."
+_NO_RCE_NOTE = "No exploitation was performed. No remote code execution payload was executed, and no attempt was made to access, modify, or retrieve sensitive information."
 
 
 def build_subject(finding: Any, asset: Any) -> str:
+    title = re.sub(r"\s*detected\s*$", "", str(finding.title), flags=re.IGNORECASE)
     return (
-        f"Security vulnerability notification — {finding.title} detected on "
+        f"Security vulnerability notification - {title} detected on "
         f"{asset.host}"
     )
 
 
-def build_disclosure_email(finding: Any, asset: Any, evidence_items: list[Any]) -> str:
+def display_name_for(email: str | None) -> str:
+    """Derive a professional sign-off name from the sender's account email.
+
+    joeal.john@example.com  -> "Joeal John"
+    joeal_john-admin@…      -> "Joeal John Admin"
+    joealjohn290@…          -> "Joealjohn" (best effort; the draft stays
+    editable before sending so the sender can adjust the signature).
+    """
+    if not email:
+        return "Sentinel Security Monitoring"
+    local = email.split("@", 1)[0]
+    parts = [p for p in re.split(r"[._\-+]+", local) if p and not p.isdigit()]
+    if len(parts) == 1:
+        parts = [re.sub(r"\d+$", "", parts[0])] or [local]
+    words = [p[:1].upper() + p[1:] for p in parts if p]
+    return " ".join(words) if words else "Sentinel Security Monitoring"
+
+
+def build_disclosure_email(
+    finding: Any, asset: Any, evidence_items: list[Any],
+    sender_email: str | None = None,
+) -> str:
     """Compose the human-readable responsible disclosure email body."""
     cves = _cves_of(finding)
+    title_cased = str(finding.severity).title() if finding.severity else "Unknown"
+    confidence = str(finding.confidence).title() if finding.confidence else "Unknown"
     lines = [
-        "Hello Security Team,",
+        "Dear Security Team,",
         "",
-        ("We are contacting you regarding a potential security vulnerability "
-         f"identified on {asset.host}."),
+        (f"I am writing to responsibly report a potential security "
+         f"vulnerability identified on {asset.host} during a non-invasive "
+         f"security assessment."),
         "",
-        "Issue:",
-        finding.title,
+        f"Vulnerability: {finding.title}",
+        f"Severity: {title_cased}",
+        f"Confidence: {confidence}",
+        f"Affected Host: {asset.host}",
         "",
-        "CVE:",
-        " / ".join(cves) if cves else "(identifier not published)",
-        "",
-        "Severity:",
-        finding.severity,
-        "",
-        "Confidence:",
-        finding.confidence,
+        "Observed Evidence",
         "",
     ]
+    if cves:
+        lines += [f"CVE reference: {' / '.join(cves)}", ""]
     if finding.detected_version:
-        lines += ["Detected PHP version:", finding.detected_version, ""]
-    lines += ["Observed evidence:"]
+        lines += [f"Software version detected: {finding.detected_version}", ""]
+    lines += ["The following indicators were observed on public endpoints:"]
     for e in evidence_items[:6]:
         value = (e.value or "").splitlines()[0][:240]
         lines.append(f"- [{e.evidence_type}] {e.name}: {value}")
     lines += [
         "",
-        "Recommended remediation:",
+        (f"These indicators suggest the host may be affected by this "
+         f"vulnerability, depending on whether the relevant security fixes "
+         f"have been backported by the operating-system or vendor package."),
+        "",
+        "Security Impact",
+        "",
+        finding.impact or "",
+        "",
+        "Testing Performed",
+        "",
+        _NO_RCE_NOTE,
+        (f"The finding is based solely on non-invasive identification of "
+         f"exposed software/version information."),
+        "",
+        "Recommended Remediation",
+        "",
         finding.remediation or "",
         "",
-        "Important:",
-        "No exploitation was performed. " + _NO_RCE_NOTE,
-        "",
-        "References:",
+        "Relevant references:",
     ]
     refs = finding.references if isinstance(finding.references, list) else []
-    for r in refs[:5]:
+    for r in refs[:6]:
         lines.append(f"- {r}")
     lines += [
         "",
-        "Regenerate:",
-        "Sentinel Security Monitoring (authorized assessment)",
+        (f"I am sharing this information in good faith so that the issue can "
+         f"be investigated and remediated before it can potentially be "
+         f"abused."),
+        "",
+        ("Please let me know if you require additional non-invasive technical "
+         f"details regarding the observation."),
         "",
         "Regards,",
-        "Sentinel Security Monitoring",
+        display_name_for(sender_email),
+        "",
+        f"Sentinel — authorized non-invasive scan {asset.host}",
     ]
     return "\n".join(lines)
 

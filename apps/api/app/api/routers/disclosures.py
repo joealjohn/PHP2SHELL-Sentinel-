@@ -127,7 +127,7 @@ def create_disclosure(finding_id: str, request: Request,
 
     subject = build_subject(finding, asset)
     body = build_disclosure_email(
-        finding, asset, _find_evidence(db, finding.id))
+        finding, asset, _find_evidence(db, finding.id), sender_email=user.email)
     d = Disclosure(
         finding_id=finding.id, contact_id=contact.id, user_id=user.id,
         asset_id=asset.id, status="DRAFT", subject=subject, body=body,

@@ -42,3 +42,6 @@ Thumbs.db
 alembic_gen.db
 *.tsbuildinfo
 reports_out/
+
+# Public CA trust bundle for scanners (contains certificates only, never keys)
+!infra/tls/ca-bundle.pem
