@@ -1542,6 +1542,12 @@ where they conflict.
 4. **Gates re-run after all changes:** API tests **32 passed** (was 25),
    packages 56 passed, `ruff check .` clean (65 files), mypy (CI scope, the
    3 packages) clean, web typecheck/build clean.
+5. **Initial git commit created and pushed.** `main` root commit
+   `2df26d3` (127 files, 13,273 lines) pushed to
+   `github.com/joealjohn/PHP2SHELL-Sentinel-`. Build artifacts
+   (`alembic_gen.db`, `tsconfig.tsbuildinfo`, test DBs) were caught before
+   the final amend and added to `.gitignore`. Until CI runs on GitHub, CI
+   itself remains unverified.
 
 ## Real SMTP
 
