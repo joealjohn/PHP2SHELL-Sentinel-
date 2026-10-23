@@ -1,0 +1,26 @@
+[project]
+name = "sentinel-scanner"
+version = "1.0.0"
+description = "Sentinel non-destructive web security scanner core"
+requires-python = ">=3.11"
+dependencies = [
+    "sentinel-shared>=1.0.0",
+    "sentinel-vulndb>=1.0.0",
+    "httpx>=0.27",
+    "dnspython>=2.6",
+    "packaging>=24.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sentinel_scanner = ["py.typed"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

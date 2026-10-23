@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "alembic/versions", "node_modules", "Temp"]
+
+[tool.ruff.lint]
+# B008 = FastAPI Depends() in defaults; BLE001 = guarded blind excepts in
+# task executors (logged, never silent); S110 = defensive cleanup paths.
+ignore = ["B008", "BLE001", "S110"]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"packages/*/tests/*" = ["RUF059"]
+"apps/api/tests/*" = ["RUF059"]

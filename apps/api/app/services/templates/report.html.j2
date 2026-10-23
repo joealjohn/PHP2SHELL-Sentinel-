@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sentinel Vulnerability Report — {{ finding.vulnerability_id }}</title>
+<style>
+  :root { color-scheme: light; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; background: #f6f7f9; color: #16181d; }
+  .page { max-width: 860px; margin: 32px auto; background: #fff; border: 1px solid #e3e5e9;
+          border-radius: 10px; padding: 40px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em;
+       color: #6a7080; margin: 32px 0 12px; border-bottom: 1px solid #eceef1;
+       padding-bottom: 6px; }
+  .kv { display: grid; grid-template-columns: 200px 1fr; row-gap: 6px; font-size: 14px; }
+  .kv dt { color: #6a7080; }
+  .kv dd { margin: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eceef1;
+           vertical-align: top; word-break: break-word; }
+  th { background: #f2f3f5; font-weight: 600; }
+  .sev { padding: 2px 10px; border-radius: 999px; color: #fff; font-weight: 700;
+          font-size: 11px; letter-spacing: .04em; }
+  .sev.CRITICAL { background: #cc1b47; }
+  .sev.HIGH { background: #e2590b; }
+  .sev.MEDIUM { background: #c78a13; }
+  .sev.LOW { background: #2b6cb0; }
+  .note { background: #fdefe9; border: 1px solid #f2c4ae; border-radius: 8px;
+          padding: 12px 16px; font-size: 13px; }
+  .muted { color: #6a7080; font-size: 12.5px; }
+  footer { margin-top: 40px; border-top: 1px solid #eceef1; padding-top: 16px;
+           font-size: 12px; color: #6a7080; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Vulnerability Report</h1>
+  <div class="muted">Generated {{ generated_at_utc }} · Sentinel Security Monitoring</div>
+
+  <h2>Vulnerability</h2>
+  <dl class="kv">
+    <dt>Title</dt><dd>{{ finding.title }}</dd>
+    <dt>Identifier</dt><dd>{{ finding.vulnerability_id }}</dd>
+    <dt>CVEs</dt><dd>{{ finding.cves | join(", ") | default("—", true) }}</dd>
+    <dt>Severity</dt><dd><span class="sev {{ finding.severity }}">{{ finding.severity }}</span>
+      <span class="muted">CVSS {{ finding.cvss }}</span></dd>
+    <dt>Confidence</dt><dd>{{ finding.confidence }}</dd>
+    <dt>State</dt><dd>{{ finding.state }}</dd>
+    <dt>Detected version</dt><dd>{{ finding.detected_version or "—" }}</dd>
+    <dt>Fixed version</dt><dd>{{ finding.fixed_version or "—" }}</dd>
+    <dt>First / last seen</dt><dd>{{ finding.first_seen or "—" }} → {{ finding.last_seen or "—" }}</dd>
+    <dt>Scanner</dt><dd>{{ finding.scanner_version or "—" }}</dd>
+  </dl>
+
+  <h2>Target</h2>
+  <dl class="kv">
+    <dt>Name</dt><dd>{{ target.name }}</dd>
+    <dt>Host</dt><dd>{{ target.host }}</dd>
+    <dt>URL</dt><dd>{{ target.url }}</dd>
+    <dt>Authorization confirmed</dt><dd>{{ target.authorization_confirmed }}</dd>
+  </dl>
+
+  <h2>Summary</h2>
+  <p>{{ finding.summary }}</p>
+
+  <h2>Impact</h2>
+  <p>{{ finding.impact }}</p>
+
+  <h2>Observed evidence</h2>
+  <table>
+    <thead><tr><th>Type</th><th>Name</th><th>Value</th><th>Source</th></tr></thead>
+    <tbody>
+    {% for e in evidence %}
+      <tr><td>{{ e.type }}</td><td>{{ e.name }}</td><td>{{ e.value }}</td><td>{{ e.source }}</td></tr>
+    {% else %}
+      <tr><td colspan="4">No evidence recorded.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Detection method</h2>
+  <p>{{ finding.detection_method or "Version comparison against the vulnerability database (non-invasive)." }}</p>
+
+  <h2>Remediation</h2>
+  <p>{{ finding.remediation }}</p>
+
+  <h2>References</h2>
+  <ul>
+    {% for r in finding.references %}<li>{{ r }}</li>{% endfor %}
+  </ul>
+
+  <div class="note">
+    <b>Assessment notice:</b> no exploit payloads were executed. All evidence derives
+    from passive header inspection and safe public endpoint requests.
+  </div>
+
+  <footer>
+    Report identifier {{ finding.id }} · Scan {{ scan.id or "—" }}
+    ({{ scan.status or "—" }}) · Sentinel vulnerability report schema 1.0
+  </footer>
+</div>
+</body>
+</html>

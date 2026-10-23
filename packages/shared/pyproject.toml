@@ -1,0 +1,26 @@
+[project]
+name = "sentinel-shared"
+version = "1.0.0"
+description = "Shared primitives for Sentinel: URL/SSRF guard, versioning, redaction, config"
+requires-python = ">=3.11"
+dependencies = [
+    "dnspython>=2.6",
+    "packaging>=24.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sentinel_shared = ["py.typed"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
