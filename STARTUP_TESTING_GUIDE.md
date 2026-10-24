@@ -188,6 +188,13 @@ session used the compose DNS name for the target, exactly as below.
     *Re-scan* → the fresh evidence version `8.4.27` ≥ fixed → state becomes
     `PATCHED` → *Close* → `RESOLVED`.
 
+**Shielded and inconclusive targets.** A target that answers with a bot
+challenge (InfinityFree JS challenge, Cloudflare) scans to `COMPLETED` but
+carries a **Shielded** badge and the warning "not a clean bill of health";
+a target that runs PHP without disclosing the version shows
+"PHP (version not disclosed)". Both are honest inconclusive results, not
+passes — re-verify outside the challenge before assessing exposure.
+
 Afterwards **restore `SCAN_ALLOW_PRIVATE_TARGETS=0`** in `.env` and restart
 the api/worker.
 
@@ -196,12 +203,12 @@ the api/worker.
 ## 6. Automated testing (all gates) — **[verified]**
 
 ```powershell
-# backend: FastAPI suite (35 passed; sqlite; conftest forces
+# backend: FastAPI suite (36 passed; sqlite; conftest forces
 # SCAN_ALLOW_PRIVATE_TARGETS=1 for the in-process lab only)
 cd apps\api
 & C:\Projects\Sentinel\.venv\Scripts\python.exe -m pytest tests -q -p no:warnings
 
-# packages: 60 passed (scanner 23 incl. TLS/AIA + hostname-mismatch classification, shared 33, vulnerability-db 4)
+# packages: 72 passed (scanner 35 incl. TLS/AIA, hostname-mismatch, shield fingerprinting and stack signals; shared 33; vulnerability-db 4)
 cd C:\Projects\Sentinel
 & C:\Projects\Sentinel\.venv\Scripts\python.exe -m pytest packages\scanner\tests packages\shared\tests packages\vulnerability-db\tests -q -p no:warnings
 
@@ -224,8 +231,8 @@ npm audit              # 0 vulnerabilities (fixed by the next@16 bump)
 
 | Gate | Expected |
 |---|---|
-| API tests | 35 passed |
-| Package tests | 60 passed (95 total) |
+| API tests | 36 passed |
+| Package tests | 72 passed (108 total) |
 | ruff | All checks passed |
 | mypy (CI scope) | no issues in 20 source files |
 | bandit | 0 issues |

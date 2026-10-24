@@ -115,7 +115,9 @@ def extract_vendor_markers(resp: FetchResult | None) -> VendorMarkers:
 
 
 def detect_php(home_outcome: FetchOutcome,
-                phpinfo_outcome: FetchOutcome | None = None) -> PhpDetection:
+                phpinfo_outcome: FetchOutcome | None = None,
+                extra_signals: list[PhpSignal] | None = None,
+                ) -> PhpDetection:
     """Combine multiple independent PHP signals into a single detection.
 
     Version-carrying evidence strengths:
@@ -136,6 +138,16 @@ def detect_php(home_outcome: FetchOutcome,
         if sig:
             signals.append(sig)
             phpinfo_exposed = True
+
+    if extra_signals:
+        seen: set[tuple[str, str, str]] = {
+            (s.name, s.source, s.value) for s in signals
+        }
+        for sig in extra_signals:
+            key = (sig.name, sig.source, sig.value)
+            if key not in seen:
+                seen.add(key)
+                signals.append(sig)
 
     if not signals:
         return PhpDetection(detected=False, version=None, confidence=Confidence.LOW,

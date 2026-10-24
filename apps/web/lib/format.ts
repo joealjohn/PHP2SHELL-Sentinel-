@@ -115,6 +115,61 @@ export function friendlyScanError(msg: string | null | undefined): string {
   return s;
 }
 
+/**
+ * Scan-summary helpers for honest inconclusive reporting (kept in sync
+ * with the scanner's summary shape: php{detected,version,confidence,stack},
+ * shielded{kind,shielded,note}, app_stack, requests_made).
+ */
+type SummaryLike = Record<string, unknown> | null | undefined;
+
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
+}
+
+export function scanShielded(summary: SummaryLike): boolean {
+  const shield = asRecord(summary?.["shielded"]);
+  return shield?.["shielded"] === true;
+}
+
+export function scanInconclusiveReason(
+  summary: SummaryLike,
+): string | null {
+  if (scanShielded(summary)) {
+    return "Target served a bot-challenge instead of real content — PHP exposure was not assessed. This is not a clean bill of health.";
+  }
+  const php = asRecord(summary?.["php"]);
+  if (php?.["detected"] === true && !php["version"]) {
+    return "PHP detected but its version is not disclosed — CVE exposure cannot be assessed remotely.";
+  }
+  return null;
+}
+
+export function scanFactsLabel(summary: SummaryLike): string | null {
+  const bits: string[] = [];
+  const stack = summary?.["app_stack"];
+  if (typeof stack === "string" && stack) bits.push(stack);
+  const php = asRecord(summary?.["php"]);
+  if (php?.["detected"] === true) {
+    const version = php["version"];
+    bits.push(
+      typeof version === "string" && version
+        ? `PHP ${version}`
+        : "PHP (version not disclosed)",
+    );
+    const confidence = php["confidence"];
+    if (typeof confidence === "string" && confidence) {
+      bits.push(`${confidence.toLowerCase()} confidence`);
+    }
+  }
+  const requests = summary?.["requests_made"];
+  if (typeof requests === "number" && requests > 0) {
+    bits.push(`${requests} req`);
+  }
+  return bits.length ? bits.join(" · ") : null;
+}
+
 export function disclosureStateIcon(d: Disclosure): string {
   if (d.status === "CANCELLED") return "Cancelled";
   if (d.delivery_status === "FAILED") return "Delivery failed";

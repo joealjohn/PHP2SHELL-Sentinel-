@@ -25,9 +25,16 @@ import {
   TimeAgo,
 } from "@/components/ui";
 import { PageHeader, SectionHeader } from "@/components/page";
-import { ScanStatusBadge } from "@/components/badges";
+import { InconclusiveBadge, ScanStatusBadge } from "@/components/badges";
 import { DashboardMetric } from "@/components/metrics";
-import { formatDateTime, formatDuration, friendlyScanError } from "@/lib/format";
+import {
+  formatDateTime,
+  formatDuration,
+  friendlyScanError,
+  scanFactsLabel,
+  scanInconclusiveReason,
+  scanShielded,
+} from "@/lib/format";
 
 export default function AssetDetailPage() {
   const { id: assetId } = useParams<{ id: string }>();
@@ -235,8 +242,22 @@ export default function AssetDetailPage() {
                   {s.status === "FAILED" && s.error ? (
                     <span className="text-xs text-crit">{friendlyScanError(s.error)}</span>
                   ) : null}
+                  {s.status === "COMPLETED"
+                    ? scanInconclusiveReason(s.summary) != null
+                      ? (
+                        <span className="text-xs text-amber-600 dark:text-amber-400" title={scanInconclusiveReason(s.summary) ?? ""}>
+                          {scanInconclusiveReason(s.summary)}
+                        </span>
+                      )
+                      : scanFactsLabel(s.summary)
+                        ? <span className="text-xs text-ink-3">{scanFactsLabel(s.summary)}</span>
+                        : null
+                    : null}
                 </span>
                 <span className="flex items-center gap-2">
+                  {s.status === "COMPLETED" && scanShielded(s.summary)
+                    ? <InconclusiveBadge label="Shielded" />
+                    : null}
                   <ScanStatusBadge status={s.status} />
                 </span>
               </li>

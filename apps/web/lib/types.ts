@@ -13,6 +13,8 @@ export type Asset = {
   next_scan_at: string | null;
   open_findings: number | null;
   last_scan_status: "COMPLETED" | "FAILED" | null;
+  last_scan_inconclusive?: boolean | null;
+  last_scan_shielded?: boolean | null;
   created_at: string;
   updated_at: string;
 };

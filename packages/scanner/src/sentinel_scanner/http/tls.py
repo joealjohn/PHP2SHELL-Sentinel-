@@ -140,14 +140,17 @@ def _aia_ca_issuers_url(der_cert: bytes) -> str | None:
         aia_ext = cert.extensions.get_extension_for_oid(
             ExtensionOID.AUTHORITY_INFORMATION_ACCESS
         )
+        if not isinstance(aia_ext.value, x509.AuthorityInformationAccess):
+            return None
         for access_desc in aia_ext.value:
             if access_desc.access_method == AuthorityInformationAccessOID.CA_ISSUERS:
                 url: str = access_desc.access_location.value
                 # Only follow HTTP AIA URLs (spec-compliant and avoids recursion)
                 if urlsplit(url).scheme == "http":
                     return url
+    # Malformed a DER certificate must never break the TLS handshake path.
     except Exception:
-        pass
+        pass  # nosec B110
     return None
 
 
@@ -168,7 +171,9 @@ def _fetch_der_from_aia(url: str) -> bytes | None:
             url,
             headers={"User-Agent": "SentinelSecurityScanner/1.0 (AIA-Chase; RFC5280)"},
         )
-        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT) as resp:
+        # Scheme is validated == "http" upstream (RFC 5280 AIA chase), so
+        # no user-controlled file:/custom scheme reaches this call.
+        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT) as resp:  # nosec B310
             data: bytes = resp.read(65_536)  # 64 KiB — no real cert is larger
         if not data:
             return None

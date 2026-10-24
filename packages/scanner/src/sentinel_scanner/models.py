@@ -93,6 +93,7 @@ class PhpDetection:
     signals: list[EvidenceItem] = field(default_factory=list)
     phpinfo_exposed: bool = False
     version_source: str = ""
+    stack: str | None = None
 
 
 @dataclass

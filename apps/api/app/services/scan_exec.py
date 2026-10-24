@@ -107,19 +107,39 @@ def execute_scan(db: Session, scan_id: str, celery_task_id: str | None = None) -
              "version": t.get("version")}
             for t in (report.technologies or [])
         ]
+        shield_payload = None
+        if getattr(report, "shielded", None) is not None \
+                and getattr(report.shielded, "shielded", False):
+            shield_payload = {
+                "shielded": True,
+                "kind": report.shielded.kind,
+                "signals": [e.raw() for e in report.shielded.evidence],
+                "note": (
+                    "Target served a bot-challenge/JS-only page instead of "
+                    "real content; PHP exposure could not be assessed. "
+                    "Treat the result as inconclusive, not as a clean bill "
+                    "of health. Sentinel observes challenges and never "
+                    "attempts to bypass them."
+                ),
+            }
+        php_block = {
+            "detected": bool(report.php and report.php.detected),
+            "version": report.php.version if report.php else None,
+            "confidence": report.php.confidence.value if report.php and hasattr(
+                report.php.confidence, "value") else None,
+            "phpinfo_exposed": bool(report.php and report.php.phpinfo_exposed),
+            "stack": report.app_stack or getattr(report.php, "stack", None)
+            if report.php else None,
+        }
         scan.summary = {
             "final_url": report.final_url,
             "status_code": report.status_code,
             "requests_made": report.requests_made,
             "duration_ms": report.duration_ms,
             "technologies": tech_summary,
-            "php": {
-                "detected": bool(report.php and report.php.detected),
-                "version": report.php.version if report.php else None,
-                "confidence": report.php.confidence.value if report.php and hasattr(
-                    report.php.confidence, "value") else None,
-                "phpinfo_exposed": bool(report.php and report.php.phpinfo_exposed),
-            },
+            "php": php_block,
+            "app_stack": report.app_stack,
+            "shielded": shield_payload,
             "scanner_version": report.scanner_version,
         }
 

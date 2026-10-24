@@ -8,8 +8,16 @@ import { Radar, OctagonAlert, SlidersHorizontal } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
 import { Badge, Button, Card, Empty, ErrorBanner, Select, Skeleton, Spinner, TimeAgo } from "@/components/ui";
 import { PageHeader } from "@/components/page";
-import { ScanStatusBadge } from "@/components/badges";
-import { formatDateTime, formatDuration, friendlyScanError, scanStatusLabel } from "@/lib/format";
+import { InconclusiveBadge, ScanStatusBadge } from "@/components/badges";
+import {
+  formatDateTime,
+  formatDuration,
+  friendlyScanError,
+  scanFactsLabel,
+  scanInconclusiveReason,
+  scanStatusLabel,
+  scanShielded,
+} from "@/lib/format";
 
 const STATUS_VALUES = ["", "COMPLETED", "FAILED", "QUEUED", "SCANNING", "ANALYZING"] as const;
 
@@ -140,8 +148,19 @@ function ScansTable() {
                           Cancel
                         </Button>
                       ) : (
-                        <span className="text-ink-3">
-                          Summary: {s.summary ? String((s.summary as Record<string, unknown>).checks_passed ?? `${Object.keys(s.summary).length} fields`) : "—"}
+                        <span className="flex items-center justify-end gap-2">
+                          {scanInconclusiveReason(s.summary) !== null ? (
+                            <span
+                              title={scanInconclusiveReason(s.summary) ?? ""}
+                              className="hidden xl:inline-block max-w-[280px] truncate text-ink-3"
+                            >
+                              {scanInconclusiveReason(s.summary)}
+                            </span>
+                          ) : null}
+                          {scanShielded(s.summary) ? <InconclusiveBadge label="Shielded" /> : null}
+                          <span className="text-ink-3">
+                            {scanFactsLabel(s.summary) ?? "No PHP signals"}
+                          </span>
                         </span>
                       )}
                     </td>

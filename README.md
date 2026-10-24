@@ -39,14 +39,25 @@ Browser ──▶ Next.js web (:3000) ──▶ FastAPI (:8000) ──▶ Celery
    validated before any request is made -- private/metadata targets are
    rejected.
 2. A scan queues through Celery. The worker executes a bounded, read-only
-   scan: max 8 redirects, 2 MiB responses, 5 requests/second, 4 parallel
-   fetches, 60 s budget, per-hop SSRF re-validation after every redirect.
-3. Detection results feed the risk assessor, which compares the detected PHP
-   version against the CVE database (`packages/vulnerability-db`). No
-   payloads exist in the codebase.
+   scan of at most 5 requests: home page, two phpinfo indicator probes, one
+   random-path `.php` probe (PHP headers often remain visible on error
+   responses even when an application overrides them on real pages), max
+   8 redirects, 2 MiB responses, 5 requests/second, per-hop SSRF
+   re-validation after every redirect.
+3. Detection combines three evidence layers: PHP runtime headers and
+   cookies, application-stack fingerprints (CMS generator meta tags,
+   framework session cookies, WordPress asset paths), and bot-challenge
+   shielding. Risk is assessed by comparing the detected PHP version
+   against the CVE database (`packages/vulnerability-db`). No payloads
+   exist in the codebase.
 4. Confidence is honest: findings stop at HIGH_CONFIDENCE (or
    LIKELY_VULNERABLE when distro/vendor markers are present). Only a fresh
    re-scan proving the version is fixed can mark PATCHED.
+5. Results are qualified, never overclaimed: a target behind a bot-challenge
+   (InfinityFree JS challenge, Cloudflare challenge) is marked Shielded /
+   Inconclusive; a target running PHP without disclosing the version is
+   marked "PHP (version not disclosed)". Sentinel observes challenges and
+   never attempts to bypass them.
 
 ## Quick start (Docker)
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import uuid
 from dataclasses import dataclass, field
 from urllib.parse import urljoin
 
@@ -11,7 +12,13 @@ from sentinel_vulndb import VulnerabilityDatabase, load_default
 from sentinel_scanner import __version__
 from sentinel_scanner.core.config import ScannerConfig
 from sentinel_scanner.core.errors import ScanTargetError
-from sentinel_scanner.detectors.php import detect_php, extract_vendor_markers
+from sentinel_scanner.detectors.app_stack import stack_signals
+from sentinel_scanner.detectors.php import (
+    PhpSignal,
+    detect_php,
+    extract_vendor_markers,
+)
+from sentinel_scanner.detectors.shield import ShieldDetection, detect_shield
 from sentinel_scanner.fingerprint.technologies import run_technology_fingerprinting
 from sentinel_scanner.http.client import FetchOutcome, SentinelHttpClient
 from sentinel_scanner.models import PhpDetection
@@ -32,6 +39,8 @@ class ScanReport:
     duration_ms: int = 0
     technologies: list[dict] = field(default_factory=list)
     php: PhpDetection | None = None
+    shielded: ShieldDetection | None = None
+    app_stack: str | None = None
     findings: list[dict] = field(default_factory=list)
     scanner_version: str = __version__
 
@@ -54,9 +63,11 @@ class ScanRunner:
     """Executes one authorized, non-destructive assessment of one asset.
 
     Steps: URL validation -> DNS/SSRF validation -> safe HTTP collection ->
-    technology fingerprinting -> PHP detection -> PHP2Shell assessment.
-    The request budget is tiny by design (home page + two phpinfo indicator
-    probes), so the scanner never resembles a crawl or brute-force sweep.
+    technology fingerprinting -> bot-challenge screening -> PHP/stack
+    detection -> PHP2Shell assessment.  The request budget stays tiny by
+    design (home page + two phpinfo indicator probes + one random-path
+    .php probe whose only value is header visibility on error responses),
+    so the scanner never resembles a crawl or brute-force sweep.
     """
 
     def __init__(self, url: str, config: ScannerConfig | None = None,
@@ -95,14 +106,43 @@ class ScanRunner:
             report.technologies = technologies_to_entries(home)
 
             phpinfo = await self._probe_phpinfo(client, result.final_url)
+            probe404 = await self._probe_php_404(client, result.final_url)
             report.requests_made = client.requests_made
 
-            report.php = detect_php(home, phpinfo)
+            report.shielded = detect_shield(home)
+            extra_signals: list[PhpSignal] = []
+            stack_hits: list[str] = []
+            for outcome in (home, phpinfo, probe404):
+                if outcome and outcome.ok and outcome.result is not None:
+                    sigs, stack = stack_signals(outcome.result)
+                    extra_signals.extend(sigs)
+                    if stack:
+                        stack_hits.append(stack)
+            stack_name = stack_hits[0] if stack_hits else None
+            report.app_stack = stack_name
+            report.php = detect_php(home, phpinfo, extra_signals=extra_signals)
+            if report.php is not None:
+                report.php.stack = stack_name
             vendor = extract_vendor_markers(result)
             results = assessor.assess(report.php, vendor, self.url)
             report.findings = results or []
 
         return _finish(report, started)
+
+    async def _probe_php_404(self, client: SentinelHttpClient,
+                             base: str) -> FetchOutcome | None:
+        """One read-only request to a random non-existent .php path.
+
+        Many mod_php stacks keep disclosing the PHP runtime header on
+        error responses even when the application overrides that header
+        on real pages.  The response is examined for header/cookie
+        signals only; nothing is written to the target and the random
+        path cannot collide with an application route.
+        """
+        base = base.rstrip("/") + "/"
+        nonce = uuid.uuid4().hex[:10]
+        return await client.get(
+            urljoin(base, f"sentinel-{nonce}.php"), follow_redirects=False)
 
     async def _probe_phpinfo(self, client: SentinelHttpClient,
                              base: str) -> FetchOutcome | None:

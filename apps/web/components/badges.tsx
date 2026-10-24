@@ -53,6 +53,19 @@ export function FindingStatusBadge({ status }: { status: string }) {
   return <Badge color={color}>{findingStatusLabelFor(status)}</Badge>;
 }
 
+export function InconclusiveBadge({
+  label = "Inconclusive",
+}: {
+  label?: string;
+}) {
+  return (
+    <Badge color="amber">
+      <span className="h-1.5 w-1.5 rounded-full bg-med" aria-hidden />
+      {label}
+    </Badge>
+  );
+}
+
 const disclosureColor: Record<string, "neutral" | "green" | "amber" | "info" | "CRITICAL"> = {
   DRAFT: "neutral",
   PENDING_APPROVAL: "amber",

@@ -74,6 +74,16 @@ def summary(db: Session = Depends(get_db), user=Depends(deps.get_current_user)):
             .order_by(Scan.created_at.desc()).first()
         )
         data["last_scan_status"] = last.status if last else None
+        data["last_scan_inconclusive"] = False
+        data["last_scan_shielded"] = False
+        if last is not None and last.status == "COMPLETED" \
+                and isinstance(last.summary, dict):
+            php = last.summary.get("php") or {}
+            shield = last.summary.get("shielded") or {}
+            shielded = bool(shield.get("shielded"))
+            unversioned = bool(php.get("detected")) and not php.get("version")
+            data["last_scan_shielded"] = shielded
+            data["last_scan_inconclusive"] = shielded or unversioned
         recent_assets_out.append(data)
     return {
         "assets": assets_total,

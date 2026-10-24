@@ -24,10 +24,15 @@ import {
 import { ScanActivityChart, scanDays } from "@/components/chart";
 import {
   FindingStatusBadge,
+  InconclusiveBadge,
   ScanStatusBadge,
   SeverityBadge,
 } from "@/components/badges";
-import { formatDuration, scanStatusLabel } from "@/lib/format";
+import {
+  formatDuration,
+  scanInconclusiveReason,
+  scanStatusLabel,
+} from "@/lib/format";
 
 export default function DashboardPage() {
   const metrics = useQuery({
@@ -197,6 +202,9 @@ export default function DashboardPage() {
                 {s.duration_seconds != null && s.status === "COMPLETED" ? (
                   <span className="text-ink-3"> · {formatDuration(s.duration_seconds)}</span>
                 ) : null}
+                {s.status === "COMPLETED" && scanInconclusiveReason(s.summary) != null
+                  ? <InconclusiveBadge />
+                  : null}
               </ActivityItem>
             ))}
             {m.recent_disclosures.slice(0, 2).map((d) => (
@@ -266,6 +274,9 @@ export default function DashboardPage() {
                   <span className="block truncate text-xs text-ink-3">{a.host}</span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
+                  {a.last_scan_inconclusive && a.last_scan_status === "COMPLETED"
+                    ? <InconclusiveBadge />
+                    : null}
                   {a.last_scan_status ? (
                     <ScanStatusBadge status={a.last_scan_status} />
                   ) : (
